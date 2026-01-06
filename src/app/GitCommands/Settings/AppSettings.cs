@@ -47,6 +47,7 @@ public static partial class AppSettings
     private static readonly SettingsPath RootSettingsPath = new AppSettingsPath(pathName: "");
     private static readonly SettingsPath HiddenSettingsPath = new AppSettingsPath("Hidden");
     private static readonly SettingsPath MigrationSettingsPath = new AppSettingsPath(HiddenSettingsPath, "Migration");
+    private static readonly SettingsPath ToolbarSettingsPath = new AppSettingsPath("Toolbar");
 
     private static Mutex _globalMutex;
 
@@ -2275,6 +2276,37 @@ public static partial class AppSettings
         }
 
         public readonly void ResetDocumentationBaseUrl() => AppSettings._documentationBaseUrl = null;
+    }
+
+    /// <summary>
+    /// Gets or sets the toolbar layout configuration
+    /// </summary>
+    public static ToolbarLayoutConfig ToolbarLayout
+    {
+        get
+        {
+            string json = SettingsContainer.GetString(ToolbarSettingsPath.PathFor("Layout"), string.Empty);
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return new ToolbarLayoutConfig();
+            }
+
+            return Utils.JsonSerializer.Deserialize<ToolbarLayoutConfig>(json) ?? new ToolbarLayoutConfig();
+        }
+        set
+        {
+            string json = Utils.JsonSerializer.Serialize(value);
+            SettingsContainer.SetString(ToolbarSettingsPath.PathFor("Layout"), json);
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the number of visible toolbars (3 or 4)
+    /// </summary>
+    public static int ToolbarCount
+    {
+        get => SettingsContainer.GetInt(ToolbarSettingsPath.PathFor("Count"), 3);
+        set => SettingsContainer.SetInt(ToolbarSettingsPath.PathFor("Count"), value);
     }
 }
 

@@ -1,4 +1,5 @@
 ﻿using GitCommands;
+using GitCommands.Settings;
 using GitCommands.Utils;
 using GitExtensions.Extensibility.Settings;
 using GitExtensions.Extensibility.Translations;
@@ -225,6 +226,25 @@ public partial class AppearanceSettingsPage : SettingsPageWithHeader
 
         lblCustomAvatarTemplate.Visible = showCustomTemplate;
         txtCustomAvatarTemplate.Visible = showCustomTemplate;
+    }
+
+    private void btnResetToolbarLayout_Click(object sender, EventArgs e)
+    {
+        DialogResult result = MessageBox.Show(
+            "This will reset all toolbars to their default layout. Continue?",
+            "Reset Toolbar Layout",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Question);
+
+        if (result == DialogResult.Yes)
+        {
+            AppSettings.ToolbarLayout = new ToolbarLayoutConfig();
+            MessageBox.Show(
+                "Toolbar layout has been reset. Please restart Git Extensions for changes to take effect.",
+                "Reset Complete",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+        }
     }
 
     private class ComboBoxItem<T>

@@ -37,6 +37,9 @@ partial class AppearanceSettingsPage
         chkEnableAutoScale = new CheckBox();
         truncateLongFilenames = new Label();
         truncatePathMethod = new ComboBox();
+        gbToolbars = new GroupBox();
+        tlpnlToolbars = new TableLayoutPanel();
+        btnResetToolbarLayout = new Button();
         gbLanguages = new GroupBox();
         tlpnlLanguage = new TableLayoutPanel();
         Dictionary = new ComboBox();
@@ -67,6 +70,8 @@ partial class AppearanceSettingsPage
         tlpnlMain.SuspendLayout();
         gbGeneral.SuspendLayout();
         tlpnlGeneral.SuspendLayout();
+        gbToolbars.SuspendLayout();
+        tlpnlToolbars.SuspendLayout();
         gbLanguages.SuspendLayout();
         tlpnlLanguage.SuspendLayout();
         gbAuthorImages.SuspendLayout();
@@ -81,12 +86,14 @@ partial class AppearanceSettingsPage
         tlpnlMain.ColumnCount = 1;
         tlpnlMain.ColumnStyles.Add(new ColumnStyle());
         tlpnlMain.Controls.Add(gbGeneral, 0, 0);
-        tlpnlMain.Controls.Add(gbLanguages, 0, 2);
-        tlpnlMain.Controls.Add(gbAuthorImages, 0, 1);
+        tlpnlMain.Controls.Add(gbToolbars, 0, 1);
+        tlpnlMain.Controls.Add(gbLanguages, 0, 3);
+        tlpnlMain.Controls.Add(gbAuthorImages, 0, 2);
         tlpnlMain.Dock = DockStyle.Fill;
         tlpnlMain.Location = new Point(8, 8);
         tlpnlMain.Name = "tlpnlMain";
-        tlpnlMain.RowCount = 4;
+        tlpnlMain.RowCount = 5;
+        tlpnlMain.RowStyles.Add(new RowStyle());
         tlpnlMain.RowStyles.Add(new RowStyle());
         tlpnlMain.RowStyles.Add(new RowStyle());
         tlpnlMain.RowStyles.Add(new RowStyle());
@@ -204,13 +211,54 @@ partial class AppearanceSettingsPage
         truncatePathMethod.Size = new Size(362, 23);
         truncatePathMethod.TabIndex = 4;
         // 
+        // gbToolbars
+        // 
+        gbToolbars.AutoSize = true;
+        gbToolbars.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        gbToolbars.Controls.Add(tlpnlToolbars);
+        gbToolbars.Dock = DockStyle.Fill;
+        gbToolbars.Location = new Point(3, 145);
+        gbToolbars.Name = "gbToolbars";
+        gbToolbars.Padding = new Padding(8);
+        gbToolbars.Size = new Size(1480, 80);
+        gbToolbars.TabIndex = 1;
+        gbToolbars.TabStop = false;
+        gbToolbars.Text = "Toolbars";
+        // 
+        // tlpnlToolbars
+        // 
+        tlpnlToolbars.AutoSize = true;
+        tlpnlToolbars.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        tlpnlToolbars.ColumnCount = 2;
+        tlpnlToolbars.ColumnStyles.Add(new ColumnStyle());
+        tlpnlToolbars.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        tlpnlToolbars.Controls.Add(btnResetToolbarLayout, 0, 0);
+        tlpnlToolbars.Dock = DockStyle.Fill;
+        tlpnlToolbars.Location = new Point(8, 24);
+        tlpnlToolbars.Name = "tlpnlToolbars";
+        tlpnlToolbars.RowCount = 1;
+        tlpnlToolbars.RowStyles.Add(new RowStyle());
+        tlpnlToolbars.Size = new Size(1464, 28);
+        tlpnlToolbars.TabIndex = 0;
+        // 
+        // btnResetToolbarLayout
+        // 
+        btnResetToolbarLayout.AutoSize = true;
+        btnResetToolbarLayout.Location = new Point(3, 28);
+        btnResetToolbarLayout.Name = "btnResetToolbarLayout";
+        btnResetToolbarLayout.Size = new Size(150, 25);
+        btnResetToolbarLayout.TabIndex = 1;
+        btnResetToolbarLayout.Text = "Reset Default Layout";
+        btnResetToolbarLayout.UseVisualStyleBackColor = true;
+        btnResetToolbarLayout.Click += new EventHandler(btnResetToolbarLayout_Click);
+        // 
         // gbLanguages
         // 
         gbLanguages.AutoSize = true;
         gbLanguages.AutoSizeMode = AutoSizeMode.GrowAndShrink;
         gbLanguages.Controls.Add(tlpnlLanguage);
         gbLanguages.Dock = DockStyle.Fill;
-        gbLanguages.Location = new Point(3, 405);
+        gbLanguages.Location = new Point(3, 505);
         gbLanguages.Name = "gbLanguages";
         gbLanguages.Padding = new Padding(8);
         gbLanguages.Size = new Size(1480, 90);
@@ -537,6 +585,10 @@ partial class AppearanceSettingsPage
         gbGeneral.PerformLayout();
         tlpnlGeneral.ResumeLayout(false);
         tlpnlGeneral.PerformLayout();
+        gbToolbars.ResumeLayout(false);
+        gbToolbars.PerformLayout();
+        tlpnlToolbars.ResumeLayout(false);
+        tlpnlToolbars.PerformLayout();
         gbLanguages.ResumeLayout(false);
         gbLanguages.PerformLayout();
         tlpnlLanguage.ResumeLayout(false);
@@ -587,4 +639,7 @@ partial class AppearanceSettingsPage
     private PictureBox avatarProviderHelp;
     private Label lblAvatarProvider;
     private ComboBox AvatarProvider;
+    private GroupBox gbToolbars;
+    private TableLayoutPanel tlpnlToolbars;
+    private Button btnResetToolbarLayout;
 }

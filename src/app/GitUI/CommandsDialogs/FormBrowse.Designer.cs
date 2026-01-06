@@ -1472,10 +1472,10 @@ partial class FormBrowse
     private ToolStripContainer toolPanel;
     private RevisionGpgInfoControl revisionGpgInfo1;
 
-    private MenuStripEx mainMenuStrip;
-    private ToolStripEx ToolStripMain;
-    private GitUI.UserControls.FilterToolBar ToolStripFilters;
-    private ToolStripEx ToolStripScripts;
+    public MenuStripEx mainMenuStrip;
+    public ToolStripEx ToolStripMain;
+    public GitUI.UserControls.FilterToolBar ToolStripFilters;
+    public ToolStripEx ToolStripScripts;
 
     private ToolStripButton toolStripButtonCommit;
     private WorkingDirectoryToolStripSplitButton _NO_TRANSLATE_WorkingDir;

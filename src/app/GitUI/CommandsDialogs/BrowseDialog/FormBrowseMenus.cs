@@ -11,7 +11,7 @@ namespace GitUI.CommandsDialogs;
 /// This class is intended to have NO dependency to FormBrowse
 ///   (if needed this kind of code should be done in FormBrowseMenuCommands).
 /// </summary>
-internal class FormBrowseMenus : ITranslate, IDisposable
+public class FormBrowseMenus : ITranslate, IDisposable
 {
     /// <summary>
     /// The menu to which we will be adding RevisionGrid command menus.
@@ -30,6 +30,9 @@ internal class FormBrowseMenus : ITranslate, IDisposable
     private ToolStripMenuItem? _viewToolStripMenuItem;
     private ToolStripMenuItem? _toolbarsMenuItem;
 
+    // Store toolbars for dynamic refresh
+    private List<ToolStrip> _registeredToolbars = [];
+
     // we have to remember which items we registered with the menucommands because other
     // location (RevisionGrid) can register items too!
     private readonly List<ToolStripMenuItem> _itemsRegisteredWithMenuCommand = [];
@@ -41,7 +44,7 @@ internal class FormBrowseMenus : ITranslate, IDisposable
         CreateMenuItems();
         Translate();
 
-        _toolStripContextMenu.Opening += (s, e) => RefreshToolbarsMenuItemCheckedState(_toolStripContextMenu.Items);
+        _toolStripContextMenu.Opening += (s, e) => RefreshContextMenu();
     }
 
     public void Dispose()
@@ -85,6 +88,9 @@ internal class FormBrowseMenus : ITranslate, IDisposable
     {
         Validates.NotNull(_toolbarsMenuItem);
 
+        // Store toolbars for dynamic refresh
+        _registeredToolbars = toolStrips.ToList<ToolStrip>();
+
         foreach (ToolStrip toolStrip in toolStrips)
         {
             DebugHelpers.Assert(!string.IsNullOrEmpty(toolStrip.Text), "Toolstrip must specify its name via Text property.");
@@ -92,6 +98,25 @@ internal class FormBrowseMenus : ITranslate, IDisposable
             _toolStripContextMenu.Items.Add(CreateItem(toolStrip));
             _toolbarsMenuItem.DropDownItems.Add(CreateItem(toolStrip));
         }
+
+        // Add separator and Customize menu item
+        _toolbarsMenuItem.DropDownItems.Add(new ToolStripSeparator());
+        ToolStripMenuItem customizeItem = new("Customize...")
+        {
+            Name = "customizeToolbarsMenuItem"
+        };
+        customizeItem.Click += (s, e) =>
+        {
+            if (_mainMenuStrip.FindForm() is FormBrowse formBrowse)
+            {
+                using FormCustomizeToolbars form = new(formBrowse, this);
+                if (form.ShowDialog(formBrowse) == DialogResult.OK)
+                {
+                    // Refresh is handled by FormCustomizeToolbars via RefreshToolbarsMenu
+                }
+            }
+        };
+        _toolbarsMenuItem.DropDownItems.Add(customizeItem);
 
         static ToolStripItem CreateItem(ToolStrip senderToolStrip)
         {
@@ -120,6 +145,133 @@ internal class FormBrowseMenus : ITranslate, IDisposable
 
             return toolStripItem;
         }
+    }
+
+    /// <summary>
+    /// Refreshes the toolbars menu to reflect dynamically created toolbars.
+    /// </summary>
+    /// <param name="dynamicToolbars">Optional dictionary of dynamically created toolbars to add.</param>
+    public void RefreshToolbarsMenu(Dictionary<string, ToolStrip>? dynamicToolbars = null)
+    {
+        Validates.NotNull(_toolbarsMenuItem);
+
+        // Add dynamic toolbars to registered list if provided
+        if (dynamicToolbars != null)
+        {
+            foreach (var toolStrip in dynamicToolbars.Values)
+            {
+                if (!_registeredToolbars.Contains(toolStrip))
+                {
+                    _registeredToolbars.Add(toolStrip);
+                }
+            }
+        }
+
+        // Clear all items except separator and Customize
+        List<ToolStripItem> itemsToRemove = new();
+        foreach (ToolStripItem item in _toolbarsMenuItem.DropDownItems)
+        {
+            if (item is not ToolStripSeparator && item.Name != "customizeToolbarsMenuItem")
+            {
+                itemsToRemove.Add(item);
+            }
+        }
+
+        foreach (ToolStripItem item in itemsToRemove)
+        {
+            _toolbarsMenuItem.DropDownItems.Remove(item);
+            item.Dispose();
+        }
+
+        // Re-add all registered toolbars to main menu
+        int insertIndex = 0;
+        foreach (ToolStrip toolStrip in _registeredToolbars)
+        {
+            DebugHelpers.Assert(!string.IsNullOrEmpty(toolStrip.Text), "Toolstrip must specify its name via Text property.");
+
+            // Only show Custom toolbars if they have at least one item
+            if (toolStrip.Text.StartsWith("Custom ") && toolStrip.Items.Count == 0)
+            {
+                continue;
+            }
+
+            ToolStripItem menuItem = CreateItem(toolStrip);
+            _toolbarsMenuItem.DropDownItems.Insert(insertIndex++, menuItem);
+        }
+
+        // Refresh context menu with latest toolbars
+        RefreshContextMenu();
+    }
+
+    /// <summary>
+    /// Refreshes the context menu with currently registered toolbars.
+    /// </summary>
+    private void RefreshContextMenu()
+    {
+        // Clear context menu
+        _toolStripContextMenu.Items.Clear();
+
+        // Re-add all registered toolbars to context menu
+        foreach (ToolStrip toolStrip in _registeredToolbars)
+        {
+            DebugHelpers.Assert(!string.IsNullOrEmpty(toolStrip.Text), "Toolstrip must specify its name via Text property.");
+
+            // Only show Custom toolbars if they have at least one item
+            if (toolStrip.Text.StartsWith("Custom ") && toolStrip.Items.Count == 0)
+            {
+                continue;
+            }
+
+            ToolStripItem contextItem = CreateItem(toolStrip);
+            _toolStripContextMenu.Items.Add(contextItem);
+        }
+
+        // Add separator and Customize menu item to context menu
+        _toolStripContextMenu.Items.Add(new ToolStripSeparator());
+        ToolStripMenuItem customizeContextItem = new("Customize...")
+        {
+            Name = "customizeToolbarsContextMenuItem"
+        };
+        customizeContextItem.Click += (s, e) =>
+        {
+            FormBrowse? form = (FormBrowse?)_mainMenuStrip.FindForm();
+            if (form != null)
+            {
+                using FormCustomizeToolbars customizeDialog = new(form, this);
+                customizeDialog.ShowDialog(form);
+            }
+        };
+        _toolStripContextMenu.Items.Add(customizeContextItem);
+
+        RefreshToolbarsMenuItemCheckedState(_toolStripContextMenu.Items);
+    }
+
+    private ToolStripItem CreateItem(ToolStrip senderToolStrip)
+    {
+        ToolStripMenuItem toolStripItem = new(senderToolStrip.Text)
+        {
+            Checked = senderToolStrip.Visible,
+            CheckOnClick = true,
+            Tag = senderToolStrip
+        };
+
+        toolStripItem.DropDown.Closing += (sender, e) =>
+        {
+            if (e.CloseReason == ToolStripDropDownCloseReason.ItemClicked)
+            {
+                // Cancel closing menu to allow selecting/unselecting multiple items.
+                e.Cancel = true;
+            }
+        };
+
+        CreateToolStripSubMenus(senderToolStrip, toolStripItem);
+
+        toolStripItem.Click += (s, e) =>
+        {
+            senderToolStrip.Visible = !senderToolStrip.Visible;
+        };
+
+        return toolStripItem;
     }
 
     private static void CreateToolStripSubMenus(ToolStrip senderToolStrip, ToolStripMenuItem toolStripItem)
@@ -450,15 +602,17 @@ internal class FormBrowseMenus : ITranslate, IDisposable
 
     private static void RefreshToolbarsMenuItemCheckedState(ToolStripItemCollection toolStripItems)
     {
-        foreach (ToolStripMenuItem item in toolStripItems)
+        foreach (ToolStripItem toolStripItem in toolStripItems)
         {
-            DebugHelpers.Assert(item.Tag is ToolStrip, "Toolbars context menu items must reference Toolstrips via Tag property.");
-            item.Checked = ((ToolStrip)item.Tag).Visible;
+            if (toolStripItem is ToolStripMenuItem item && item.Tag is ToolStrip toolStrip)
+            {
+                item.Checked = toolStrip.Visible;
+            }
         }
     }
 }
 
-internal enum MainMenuItem
+public enum MainMenuItem
 {
     NavigateMenu,
     ViewMenu

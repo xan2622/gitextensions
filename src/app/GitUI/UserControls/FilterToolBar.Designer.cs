@@ -2,7 +2,7 @@
 
 namespace GitUI.UserControls;
 
-internal partial class FilterToolBar
+public partial class FilterToolBar
 {
     #region Windows Form Designer generated code
 

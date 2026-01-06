@@ -9,7 +9,7 @@
 ///
 /// Purpose: have methods from specific context menus also available in main menu.
 /// </summary>
-internal class MenuCommand
+public class MenuCommand
 {
     public static MenuCommand CreateSeparator()
     {

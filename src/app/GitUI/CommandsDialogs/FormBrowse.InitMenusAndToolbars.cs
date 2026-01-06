@@ -1,4 +1,5 @@
 ﻿using GitCommands;
+using GitCommands.Settings;
 using GitExtensions.Extensibility;
 using GitExtensions.Extensibility.Git;
 using GitExtUtils;
@@ -58,6 +59,8 @@ partial class FormBrowse
 
         InsertFetchPullShortcuts();
 
+        ApplySavedToolbarLayout();
+
         WorkaroundToolbarLocationBug();
 
         return;
@@ -104,26 +107,71 @@ partial class FormBrowse
             // 1. Clear all toolbars
             toolPanel.TopToolStripPanel.Controls.Clear();
 
-            // 2. Add all the toolbars back in a reverse order, every added toolbar pushing existing ones to the right
+            // 2. Add toolbars (Main, Filters, Scripts) in reverse order
             ToolStrip[] toolStrips = new[] { ToolStripScripts, ToolStripFilters, ToolStripMain };
             foreach (ToolStrip toolStrip in toolStrips)
             {
-                toolPanel.TopToolStripPanel.Controls.Add(toolStrip);
+                if (toolStrip.Visible)
+                {
+                    toolPanel.TopToolStripPanel.Controls.Add(toolStrip);
+                }
             }
 
 #if DEBUG
-            // 3. Assert all toolbars on the same row
-            foreach (ToolStrip toolStrip in toolStrips)
+            // 3. Assert toolbars are on the same row
+            foreach (ToolStrip toolStrip in toolStrips.Where(ts => ts.Visible))
             {
                 DebugHelpers.Assert(toolStrip.Top == 0, $"{toolStrip.Name} must be placed on the 1st row");
             }
 
             // 4. Assert the correct order of toolbars
-            for (int i = toolStrips.Length - 1; i > 0; i--)
+            var visibleToolStrips = toolStrips.Where(ts => ts.Visible).ToArray();
+            for (int i = visibleToolStrips.Length - 1; i > 0; i--)
             {
-                DebugHelpers.Assert(toolStrips[i].Left < toolStrips[i - 1].Left, $"{toolStrips[i - 1].Name} must be placed before {toolStrips[i].Name}");
+                DebugHelpers.Assert(visibleToolStrips[i].Left < visibleToolStrips[i - 1].Left,
+                    $"{visibleToolStrips[i - 1].Name} must be placed before {visibleToolStrips[i].Name}");
             }
 #endif
+        }
+
+        void ApplySavedToolbarLayout()
+        {
+            ToolbarLayoutConfig config = AppSettings.ToolbarLayout;
+
+            if (config.Items.Count == 0)
+            {
+                return; // No saved layout, use defaults
+            }
+
+            ApplyLayoutToToolStrip(ToolStripMain, 0, config);
+            ApplyLayoutToToolStrip(ToolStripFilters, 1, config);
+            ApplyLayoutToToolStrip(ToolStripScripts, 2, config);
+        }
+
+        void ApplyLayoutToToolStrip(ToolStrip toolStrip, int toolbarIndex, ToolbarLayoutConfig config)
+        {
+            var itemsForToolbar = config.Items
+                .Where(ic => ic.ToolbarIndex == toolbarIndex)
+                .OrderBy(ic => ic.Order)
+                .ToList();
+
+            foreach (ToolbarItemConfig itemConfig in itemsForToolbar)
+            {
+                ToolStripItem? item = toolStrip.Items.Cast<ToolStripItem>()
+                    .FirstOrDefault(i => i.Name == itemConfig.ItemName);
+
+                if (item is not null)
+                {
+                    int currentIndex = toolStrip.Items.IndexOf(item);
+                    int targetIndex = Math.Min(itemConfig.Order, toolStrip.Items.Count - 1);
+
+                    if (currentIndex != targetIndex)
+                    {
+                        toolStrip.Items.Remove(item);
+                        toolStrip.Items.Insert(targetIndex, item);
+                    }
+                }
+            }
         }
     }
 
