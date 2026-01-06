@@ -1,4 +1,4 @@
-﻿using GitCommands;
+using GitCommands;
 using GitCommands.Config;
 using GitCommands.Remotes;
 using GitCommands.UserRepositoryHistory;
@@ -121,6 +121,9 @@ Inactive remote is completely invisible to git.");
         toolTip1.SetToolTip(New, _btnNewTooltip.Text);
         toolTip1.SetToolTip(Delete, _btnDeleteTooltip.Text);
 
+        // Keep the "New" button enabled at all times
+        New.Enabled = true;
+
         _lvgEnabled = new ListViewGroup(_lvgEnabledHeader.Text, HorizontalAlignment.Left);
         _lvgDisabled = new ListViewGroup(_lvgDisabledHeader.Text, HorizontalAlignment.Left);
         Remotes.Groups.AddRange([_lvgEnabled, _lvgDisabled]);
@@ -131,7 +134,23 @@ Inactive remote is completely invisible to git.");
         RemoteCombo.DataPropertyName = nameof(IGitRef.TrackingRemote);
         MergeWith.DataPropertyName = nameof(IGitRef.MergeWith);
 
-        Remotes.Columns[0].Width = DpiUtil.Scale(120);
+        Remotes.Resize += (s, e) => AutoResizeRemotesColumn();
+    }
+
+    private void AutoResizeRemotesColumn()
+    {
+        if (Remotes.Items.Count == 0)
+        {
+            return;
+        }
+
+        Remotes.Columns[0].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
+
+        int availableWidth = Remotes.ClientSize.Width;
+        if (Remotes.Columns[0].Width < availableWidth)
+        {
+            Remotes.Columns[0].Width = availableWidth;
+        }
     }
 
     /// <summary>
@@ -194,9 +213,12 @@ Inactive remote is completely invisible to git.");
 
             Remotes.FocusedItem = Remotes.SelectedItems[0];
             Remotes.Select();
+            AutoResizeRemotesColumn();
         }
         else
         {
+            Delete.Enabled = false;
+            btnToggleState.Enabled = false;
             RemoteName.Focus();
         }
     }
@@ -689,7 +711,7 @@ Inactive remote is completely invisible to git.");
             return;
         }
 
-        New.Enabled = Delete.Enabled = btnToggleState.Enabled = false;
+        Delete.Enabled = btnToggleState.Enabled = false;
         RemoteName.Text = string.Empty;
         Url.Text = string.Empty;
         comboBoxPushUrl.Text = string.Empty;
@@ -699,8 +721,6 @@ Inactive remote is completely invisible to git.");
 
         if (Remotes.SelectedIndices.Count < 1)
         {
-            // we are here because we're adding a new remote - so no remotes selected
-            // we just need to enable the panel so the user can enter the information
             _selectedRemote = null;
             flpnlRemoteManagement.Enabled = true;
             return;
