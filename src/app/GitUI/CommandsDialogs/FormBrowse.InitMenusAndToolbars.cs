@@ -1,4 +1,4 @@
-﻿using GitCommands;
+using GitCommands;
 using GitCommands.Settings;
 using GitExtensions.Extensibility;
 using GitExtensions.Extensibility.Git;
@@ -59,6 +59,8 @@ partial class FormBrowse
 
         InsertFetchPullShortcuts();
 
+        LoadDynamicToolbarsFromConfig();
+
         ApplySavedToolbarLayout();
 
         WorkaroundToolbarLocationBug();
@@ -98,18 +100,58 @@ partial class FormBrowse
             }
         }
 
+        void LoadDynamicToolbarsFromConfig()
+        {
+            ToolbarLayoutConfig? config = AppSettings.ToolbarLayout;
+
+            if (config is null || config.CustomToolbars is null || config.CustomToolbars.Count == 0)
+            {
+                return; // No custom toolbars to load
+            }
+
+            // Create custom toolbars from metadata
+            foreach (CustomToolbarMetadata metadata in config.CustomToolbars.OrderBy(m => m.Index))
+            {
+                ToolStripEx newToolStrip = new()
+                {
+                    Name = $"ToolStripCustom{metadata.Name.Replace("Custom ", "")}",
+                    Text = metadata.Name,
+                    Visible = metadata.Visible,
+                    GripStyle = ToolStripGripStyle.Visible,
+                    GripMargin = new System.Windows.Forms.Padding(2, 0, 2, 0),
+                    BackColor = ToolStripMain.BackColor,
+                    ForeColor = ToolStripMain.ForeColor
+                };
+
+                // Add to panel (will be reordered by WorkaroundToolbarLocationBug)
+                toolPanel.TopToolStripPanel.Controls.Add(newToolStrip);
+            }
+        }
+
         void WorkaroundToolbarLocationBug()
         {
             // Layout engine bug (?) which may change the order of toolbars
             // if the 1st one becomes longer than the 2nd toolbar's Location.X
             // the layout engine will be place the 2nd toolbar first
 
-            // 1. Clear all toolbars
+            // 1. Get all toolbars (built-in and custom)
+            List<ToolStrip> allToolStrips = new() { ToolStripScripts, ToolStripFilters, ToolStripMain };
+
+            // Add custom toolbars from the panel
+            foreach (Control control in toolPanel.TopToolStripPanel.Controls)
+            {
+                if (control is ToolStrip toolStrip && toolStrip.Name.StartsWith("ToolStripCustom"))
+                {
+                    allToolStrips.Add(toolStrip);
+                }
+            }
+
+            // 2. Clear all toolbars
             toolPanel.TopToolStripPanel.Controls.Clear();
 
-            // 2. Add toolbars (Main, Filters, Scripts) in reverse order
-            ToolStrip[] toolStrips = new[] { ToolStripScripts, ToolStripFilters, ToolStripMain };
-            foreach (ToolStrip toolStrip in toolStrips)
+            // 3. Add all toolbars in reverse order
+            allToolStrips.Reverse();
+            foreach (ToolStrip toolStrip in allToolStrips)
             {
                 if (toolStrip.Visible)
                 {
@@ -118,14 +160,14 @@ partial class FormBrowse
             }
 
 #if DEBUG
-            // 3. Assert toolbars are on the same row
-            foreach (ToolStrip toolStrip in toolStrips.Where(ts => ts.Visible))
+            // 4. Assert toolbars are on the same row
+            foreach (ToolStrip toolStrip in allToolStrips.Where(ts => ts.Visible))
             {
                 DebugHelpers.Assert(toolStrip.Top == 0, $"{toolStrip.Name} must be placed on the 1st row");
             }
 
-            // 4. Assert the correct order of toolbars
-            var visibleToolStrips = toolStrips.Where(ts => ts.Visible).ToArray();
+            // 5. Assert the correct order of toolbars
+            var visibleToolStrips = allToolStrips.Where(ts => ts.Visible).ToArray();
             for (int i = visibleToolStrips.Length - 1; i > 0; i--)
             {
                 DebugHelpers.Assert(visibleToolStrips[i].Left < visibleToolStrips[i - 1].Left,
@@ -136,42 +178,152 @@ partial class FormBrowse
 
         void ApplySavedToolbarLayout()
         {
-            ToolbarLayoutConfig config = AppSettings.ToolbarLayout;
+            ToolbarLayoutConfig? config = AppSettings.ToolbarLayout;
 
-            if (config.Items.Count == 0)
+            if (config is null || config.Items is null || config.Items.Count == 0)
             {
                 return; // No saved layout, use defaults
             }
 
-            ApplyLayoutToToolStrip(ToolStripMain, 0, config);
-            ApplyLayoutToToolStrip(ToolStripFilters, 1, config);
-            ApplyLayoutToToolStrip(ToolStripScripts, 2, config);
+            // Apply layout to built-in toolbars (reorganize existing items)
+            ApplyLayoutToToolStrip(ToolStripMain, 0, config, isCustomToolbar: false);
+            ApplyLayoutToToolStrip(ToolStripFilters, 1, config, isCustomToolbar: false);
+            ApplyLayoutToToolStrip(ToolStripScripts, 2, config, isCustomToolbar: false);
+
+            // Apply layout to custom toolbars (move items from built-in toolbars)
+            if (config.CustomToolbars is not null)
+            {
+                foreach (CustomToolbarMetadata metadata in config.CustomToolbars)
+                {
+                    ToolStrip? customToolStrip = toolPanel.TopToolStripPanel.Controls
+                        .Cast<Control>()
+                        .OfType<ToolStrip>()
+                        .FirstOrDefault(ts => ts.Text == metadata.Name);
+
+                    if (customToolStrip is not null)
+                    {
+                        ApplyLayoutToToolStrip(customToolStrip, metadata.Index, config, isCustomToolbar: true);
+                    }
+                }
+            }
         }
 
-        void ApplyLayoutToToolStrip(ToolStrip toolStrip, int toolbarIndex, ToolbarLayoutConfig config)
+        void ApplyLayoutToToolStrip(ToolStrip toolStrip, int toolbarIndex, ToolbarLayoutConfig config, bool isCustomToolbar)
         {
+            if (toolStrip is null || config is null || config.Items is null)
+            {
+                return;
+            }
+
             var itemsForToolbar = config.Items
                 .Where(ic => ic.ToolbarIndex == toolbarIndex)
                 .OrderBy(ic => ic.Order)
                 .ToList();
 
-            foreach (ToolbarItemConfig itemConfig in itemsForToolbar)
+            if (isCustomToolbar)
             {
-                ToolStripItem? item = toolStrip.Items.Cast<ToolStripItem>()
-                    .FirstOrDefault(i => i.Name == itemConfig.ItemName);
-
-                if (item is not null)
+                // For custom toolbars: Move items from built-in toolbars
+                int insertIndex = 0;
+                foreach (ToolbarItemConfig itemConfig in itemsForToolbar)
                 {
-                    int currentIndex = toolStrip.Items.IndexOf(item);
-                    int targetIndex = Math.Min(itemConfig.Order, toolStrip.Items.Count - 1);
+                    ToolStripItem? item = null;
 
-                    if (currentIndex != targetIndex)
+                    // Handle special items
+                    if (itemConfig.ItemName.StartsWith("_SEPARATOR_"))
                     {
-                        toolStrip.Items.Remove(item);
-                        toolStrip.Items.Insert(targetIndex, item);
+                        item = new ToolStripSeparator();
+                    }
+                    else if (itemConfig.ItemName.StartsWith("_SPACER_"))
+                    {
+                        item = new ToolStripLabel
+                        {
+                            Name = itemConfig.ItemName,
+                            AutoSize = true,
+                            Text = "     ",
+                            DisplayStyle = ToolStripItemDisplayStyle.Text
+                        };
+                    }
+                    else
+                    {
+                        // Search for item in all built-in toolbars
+                        item = FindItemInAllToolbars(itemConfig.ItemName);
+                    }
+
+                    if (item != null)
+                    {
+                        // Remove from current owner if different
+                        if (item.Owner != null && item.Owner != toolStrip)
+                        {
+                            item.Owner.Items.Remove(item);
+                        }
+
+                        // Add to custom toolbar at correct position
+                        int targetIndex = Math.Min(insertIndex, toolStrip.Items.Count);
+                        if (!toolStrip.Items.Contains(item))
+                        {
+                            toolStrip.Items.Insert(targetIndex, item);
+                        }
+
+                        insertIndex++;
                     }
                 }
             }
+            else
+            {
+                // For built-in toolbars: Reorganize existing items
+                int insertIndex = 0;
+                foreach (ToolbarItemConfig itemConfig in itemsForToolbar)
+                {
+                    ToolStripItem? item = toolStrip.Items.Cast<ToolStripItem>()
+                        .FirstOrDefault(i => i.Name == itemConfig.ItemName);
+
+                    if (item is not null)
+                    {
+                        int currentIndex = toolStrip.Items.IndexOf(item);
+                        int targetIndex = Math.Min(insertIndex, toolStrip.Items.Count - 1);
+
+                        if (currentIndex != targetIndex && currentIndex != -1)
+                        {
+                            toolStrip.Items.Remove(item);
+                            toolStrip.Items.Insert(targetIndex, item);
+                        }
+
+                        insertIndex++;
+                    }
+                }
+            }
+        }
+
+        ToolStripItem? FindItemInAllToolbars(string itemName)
+        {
+            if (string.IsNullOrWhiteSpace(itemName))
+            {
+                return null;
+            }
+
+            // Search in main toolbar
+            ToolStripItem? item = ToolStripMain.Items.Cast<ToolStripItem>()
+                .FirstOrDefault(i => i.Name == itemName);
+
+            if (item != null)
+            {
+                return item;
+            }
+
+            // Search in filters toolbar
+            item = ToolStripFilters.Items.Cast<ToolStripItem>()
+                .FirstOrDefault(i => i.Name == itemName);
+
+            if (item != null)
+            {
+                return item;
+            }
+
+            // Search in scripts toolbar
+            item = ToolStripScripts.Items.Cast<ToolStripItem>()
+                .FirstOrDefault(i => i.Name == itemName);
+
+            return item;
         }
     }
 

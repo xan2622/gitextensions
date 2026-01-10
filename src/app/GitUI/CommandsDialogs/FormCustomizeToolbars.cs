@@ -131,33 +131,59 @@ namespace GitUI.CommandsDialogs
 
         private void RestoreOriginalToolbarLayouts()
         {
-            // Clear all toolbars first
+            // Clear all toolbars first (built-in AND custom)
             _formBrowse.ToolStripMain.Items.Clear();
             _formBrowse.ToolStripFilters.Items.Clear();
             _formBrowse.ToolStripScripts.Items.Clear();
 
-            // Restore items to their original toolbars based on stored layout
-            foreach (ToolStripItemWrapper wrapper in _toolbarItems["Standard"])
+            // Clear custom toolbars
+            foreach (ToolStrip toolStrip in _dynamicToolbars.Values)
             {
-                if (wrapper.Item != null && _originalItems.ContainsKey(wrapper.Item.Name))
-                {
-                    _formBrowse.ToolStripMain.Items.Add(_originalItems[wrapper.Item.Name]);
-                }
+                toolStrip.Items.Clear();
             }
 
-            foreach (ToolStripItemWrapper wrapper in _toolbarItems["Filters"])
+            // Restore items to ALL toolbars based on stored layout
+            foreach (var kvp in _toolbarItems)
             {
-                if (wrapper.Item != null && _originalItems.ContainsKey(wrapper.Item.Name))
-                {
-                    _formBrowse.ToolStripFilters.Items.Add(_originalItems[wrapper.Item.Name]);
-                }
-            }
+                string toolbarName = kvp.Key;
+                List<ToolStripItemWrapper> wrappers = kvp.Value;
+                ToolStrip? targetToolStrip = GetToolStripByName(toolbarName);
 
-            foreach (ToolStripItemWrapper wrapper in _toolbarItems["Scripts"])
-            {
-                if (wrapper.Item != null && _originalItems.ContainsKey(wrapper.Item.Name))
+                if (targetToolStrip != null)
                 {
-                    _formBrowse.ToolStripScripts.Items.Add(_originalItems[wrapper.Item.Name]);
+                    foreach (ToolStripItemWrapper wrapper in wrappers)
+                    {
+                        // Handle special items (separators, spacers)
+                        if (wrapper.Item == null)
+                        {
+                            if (wrapper.DisplayName == "--- separator ---")
+                            {
+                                targetToolStrip.Items.Add(new ToolStripSeparator());
+                            }
+                            else if (wrapper.DisplayName == "--- expanding spacer ---")
+                            {
+                                targetToolStrip.Items.Add(new ToolStripLabel
+                                {
+                                    AutoSize = true,
+                                    Text = "     ",
+                                    DisplayStyle = ToolStripItemDisplayStyle.Text
+                                });
+                            }
+                        }
+                        else if (!string.IsNullOrWhiteSpace(wrapper.Item.Name) &&
+                                 _originalItems.ContainsKey(wrapper.Item.Name))
+                        {
+                            ToolStripItem originalItem = _originalItems[wrapper.Item.Name];
+
+                            // Remove from current owner if different
+                            if (originalItem.Owner != null && originalItem.Owner != targetToolStrip)
+                            {
+                                originalItem.Owner.Items.Remove(originalItem);
+                            }
+
+                            targetToolStrip.Items.Add(originalItem);
+                        }
+                    }
                 }
             }
         }
@@ -712,15 +738,28 @@ namespace GitUI.CommandsDialogs
                     {
                         toolStrip.Items.Add(itemToAdd);
 
-                        if (!string.IsNullOrWhiteSpace(itemToAdd.Name))
+                        // Save ALL items including separators and spacers
+                        string itemName;
+                        if (itemToAdd is ToolStripSeparator)
                         {
-                            config.Items.Add(new ToolbarItemConfig
-                            {
-                                ItemName = itemToAdd.Name,
-                                ToolbarIndex = GetToolbarIndex(toolbarName),
-                                Order = order++
-                            });
+                            itemName = $"_SEPARATOR_{order}";
                         }
+                        else if (string.IsNullOrWhiteSpace(itemToAdd.Name))
+                        {
+                            itemName = $"_SPACER_{order}";
+                        }
+                        else
+                        {
+                            itemName = itemToAdd.Name;
+                        }
+
+                        config.Items.Add(new ToolbarItemConfig
+                        {
+                            ItemName = itemName,
+                            ToolbarIndex = GetToolbarIndex(toolbarName),
+                            ToolbarName = toolbarName,
+                            Order = order++
+                        });
                     }
                 }
 
@@ -729,6 +768,21 @@ namespace GitUI.CommandsDialogs
                 {
                     toolStrip.Visible = toolStrip.Items.Count > 0;
                 }
+            }
+
+            // Save custom toolbar metadata
+            config.CustomToolbars.Clear();
+            foreach (string toolbarName in allToolbarNames.Where(name => name.StartsWith("Custom ")))
+            {
+                ToolStrip? toolStrip = GetToolStripByName(toolbarName);
+                int toolbarIndex = GetToolbarIndex(toolbarName);
+
+                config.CustomToolbars.Add(new CustomToolbarMetadata
+                {
+                    Name = toolbarName,
+                    Index = toolbarIndex,
+                    Visible = toolStrip?.Visible ?? true
+                });
             }
 
             // Save the configuration
