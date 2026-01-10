@@ -1,3 +1,4 @@
+using System.IO;
 using GitCommands;
 using GitCommands.Settings;
 using GitExtensions.Extensibility;
@@ -16,6 +17,27 @@ partial class FormBrowse
     // This file is dedicated to init logic for FormBrowse menus and toolbars
 
     internal static readonly string FetchPullToolbarShortcutsPrefix = "pull_shortcut_";
+
+    // Dictionary to store original toolbar items before any manipulation
+    // This preserves event handlers and allows items to be found even after they've been moved
+    private readonly Dictionary<string, ToolStripItem> _originalToolbarItems = new();
+
+    // Helper method to log to both Debug output and file
+    private static void LogToolbar(string message)
+    {
+        System.Diagnostics.Debug.WriteLine(message);
+
+        // Also write to file for easier debugging
+        try
+        {
+            string logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GitExtensions", "toolbar_debug.log");
+            File.AppendAllText(logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {message}{Environment.NewLine}");
+        }
+        catch
+        {
+            // Ignore file write errors
+        }
+    }
 
     private void InitMenusAndToolbars(string? revFilter, string? pathFilter)
     {
@@ -56,6 +78,9 @@ partial class FormBrowse
         RefreshDefaultPullAction();
 
         FillUserShells(defaultShell: BashShell.ShellName);
+
+        // Store all original items BEFORE any manipulation
+        StoreOriginalToolbarItems();
 
         InsertFetchPullShortcuts();
 
@@ -100,18 +125,48 @@ partial class FormBrowse
             }
         }
 
+        void StoreOriginalToolbarItems()
+        {
+            // Store all toolbar items with their original references
+            // This allows items to be found even after they've been moved to custom toolbars
+            StoreItemsFromToolbar(ToolStripMain);
+            StoreItemsFromToolbar(ToolStripFilters);
+            StoreItemsFromToolbar(ToolStripScripts);
+
+            LogToolbar($"[StoreOriginalToolbarItems] Stored {_originalToolbarItems.Count} items");
+
+            void StoreItemsFromToolbar(ToolStrip toolbar)
+            {
+                foreach (ToolStripItem item in toolbar.Items)
+                {
+                    if (!string.IsNullOrWhiteSpace(item.Name) && !_originalToolbarItems.ContainsKey(item.Name))
+                    {
+                        _originalToolbarItems[item.Name] = item;
+                        LogToolbar($"[StoreOriginalToolbarItems] Stored: {item.Name} from {toolbar.Name}");
+                    }
+                }
+            }
+        }
+
         void LoadDynamicToolbarsFromConfig()
         {
             ToolbarLayoutConfig? config = AppSettings.ToolbarLayout;
 
+            LogToolbar($"[LoadDynamicToolbarsFromConfig] Config is null: {config is null}");
+
             if (config is null || config.CustomToolbars is null || config.CustomToolbars.Count == 0)
             {
+                LogToolbar("[LoadDynamicToolbarsFromConfig] No custom toolbars to load");
                 return; // No custom toolbars to load
             }
+
+            LogToolbar($"[LoadDynamicToolbarsFromConfig] Loading {config.CustomToolbars.Count} custom toolbars");
 
             // Create custom toolbars from metadata
             foreach (CustomToolbarMetadata metadata in config.CustomToolbars.OrderBy(m => m.Index))
             {
+                LogToolbar($"[LoadDynamicToolbarsFromConfig] Creating toolbar: {metadata.Name}, Index: {metadata.Index}, Visible: {metadata.Visible}");
+
                 ToolStripEx newToolStrip = new()
                 {
                     Name = $"ToolStripCustom{metadata.Name.Replace("Custom ", "")}",
@@ -133,24 +188,37 @@ partial class FormBrowse
             // Layout engine bug (?) which may change the order of toolbars
             // if the 1st one becomes longer than the 2nd toolbar's Location.X
             // the layout engine will be place the 2nd toolbar first
+            //
+            // In ToolStripPanel, controls are added from RIGHT to LEFT.
+            // So to get: Standard | Filters | Scripts | Custom (left to right)
+            // We need to add in reverse: Custom, Scripts, Filters, Standard
 
-            // 1. Get all toolbars (built-in and custom)
-            List<ToolStrip> allToolStrips = new() { ToolStripScripts, ToolStripFilters, ToolStripMain };
-
-            // Add custom toolbars from the panel
+            // 1. Collect custom toolbars first (they should appear on the right)
+            List<ToolStrip> customToolStrips = new();
             foreach (Control control in toolPanel.TopToolStripPanel.Controls)
             {
                 if (control is ToolStrip toolStrip && toolStrip.Name.StartsWith("ToolStripCustom"))
                 {
-                    allToolStrips.Add(toolStrip);
+                    customToolStrips.Add(toolStrip);
                 }
             }
 
-            // 2. Clear all toolbars
+            // 2. Build the list in the order we need to ADD them
+            // (reverse of visual order because ToolStripPanel adds from right to left)
+            List<ToolStrip> allToolStrips = new();
+
+            // Custom toolbars first (will appear rightmost)
+            allToolStrips.AddRange(customToolStrips);
+
+            // Then built-in toolbars in reverse visual order
+            allToolStrips.Add(ToolStripScripts);  // Will appear before custom
+            allToolStrips.Add(ToolStripFilters);  // Will appear before Scripts
+            allToolStrips.Add(ToolStripMain);     // Will appear leftmost (Standard)
+
+            // 3. Clear panel
             toolPanel.TopToolStripPanel.Controls.Clear();
 
-            // 3. Add all toolbars in reverse order
-            allToolStrips.Reverse();
+            // 4. Add all toolbars (no need to reverse - order is already correct for adding)
             foreach (ToolStrip toolStrip in allToolStrips)
             {
                 if (toolStrip.Visible)
@@ -180,10 +248,15 @@ partial class FormBrowse
         {
             ToolbarLayoutConfig? config = AppSettings.ToolbarLayout;
 
+            LogToolbar($"[ApplySavedToolbarLayout] Config is null: {config is null}");
+
             if (config is null || config.Items is null || config.Items.Count == 0)
             {
+                LogToolbar("[ApplySavedToolbarLayout] No saved layout, use defaults");
                 return; // No saved layout, use defaults
             }
+
+            LogToolbar($"[ApplySavedToolbarLayout] Applying layout with {config.Items.Count} items");
 
             // Apply layout to built-in toolbars (reorganize existing items)
             ApplyLayoutToToolStrip(ToolStripMain, 0, config, isCustomToolbar: false);
@@ -193,6 +266,8 @@ partial class FormBrowse
             // Apply layout to custom toolbars (move items from built-in toolbars)
             if (config.CustomToolbars is not null)
             {
+                LogToolbar($"[ApplySavedToolbarLayout] Processing {config.CustomToolbars.Count} custom toolbars");
+
                 foreach (CustomToolbarMetadata metadata in config.CustomToolbars)
                 {
                     ToolStrip? customToolStrip = toolPanel.TopToolStripPanel.Controls
@@ -202,7 +277,12 @@ partial class FormBrowse
 
                     if (customToolStrip is not null)
                     {
+                        LogToolbar($"[ApplySavedToolbarLayout] Applying layout to custom toolbar: {metadata.Name}");
                         ApplyLayoutToToolStrip(customToolStrip, metadata.Index, config, isCustomToolbar: true);
+                    }
+                    else
+                    {
+                        LogToolbar($"[ApplySavedToolbarLayout] ERROR: Custom toolbar not found: {metadata.Name}");
                     }
                 }
             }
@@ -220,6 +300,8 @@ partial class FormBrowse
                 .OrderBy(ic => ic.Order)
                 .ToList();
 
+            LogToolbar($"[ApplyLayoutToToolStrip] Toolbar: {toolStrip.Name}, Index: {toolbarIndex}, IsCustom: {isCustomToolbar}, Items to apply: {itemsForToolbar.Count}");
+
             if (isCustomToolbar)
             {
                 // For custom toolbars: Move items from built-in toolbars
@@ -228,10 +310,13 @@ partial class FormBrowse
                 {
                     ToolStripItem? item = null;
 
+                    LogToolbar($"[ApplyLayoutToToolStrip] Processing item: {itemConfig.ItemName}, Order: {itemConfig.Order}");
+
                     // Handle special items
                     if (itemConfig.ItemName.StartsWith("_SEPARATOR_"))
                     {
                         item = new ToolStripSeparator();
+                        LogToolbar($"[ApplyLayoutToToolStrip] Created separator");
                     }
                     else if (itemConfig.ItemName.StartsWith("_SPACER_"))
                     {
@@ -242,11 +327,13 @@ partial class FormBrowse
                             Text = "     ",
                             DisplayStyle = ToolStripItemDisplayStyle.Text
                         };
+                        LogToolbar($"[ApplyLayoutToToolStrip] Created spacer");
                     }
                     else
                     {
                         // Search for item in all built-in toolbars
                         item = FindItemInAllToolbars(itemConfig.ItemName);
+                        LogToolbar($"[ApplyLayoutToToolStrip] FindItemInAllToolbars({itemConfig.ItemName}) returned: {(item != null ? item.Name : "NULL")}");
                     }
 
                     if (item != null)
@@ -254,6 +341,7 @@ partial class FormBrowse
                         // Remove from current owner if different
                         if (item.Owner != null && item.Owner != toolStrip)
                         {
+                            LogToolbar($"[ApplyLayoutToToolStrip] Removing {item.Name} from {item.Owner.Name}");
                             item.Owner.Items.Remove(item);
                         }
 
@@ -262,9 +350,18 @@ partial class FormBrowse
                         if (!toolStrip.Items.Contains(item))
                         {
                             toolStrip.Items.Insert(targetIndex, item);
+                            LogToolbar($"[ApplyLayoutToToolStrip] Inserted {item.Name} at index {targetIndex} in {toolStrip.Name}");
+                        }
+                        else
+                        {
+                            LogToolbar($"[ApplyLayoutToToolStrip] Item {item.Name} already in {toolStrip.Name}");
                         }
 
                         insertIndex++;
+                    }
+                    else
+                    {
+                        LogToolbar($"[ApplyLayoutToToolStrip] WARNING: Item {itemConfig.ItemName} not found!");
                     }
                 }
             }
@@ -292,6 +389,8 @@ partial class FormBrowse
                     }
                 }
             }
+
+            LogToolbar($"[ApplyLayoutToToolStrip] Final item count in {toolStrip.Name}: {toolStrip.Items.Count}");
         }
 
         ToolStripItem? FindItemInAllToolbars(string itemName)
@@ -301,12 +400,24 @@ partial class FormBrowse
                 return null;
             }
 
+            // First, try to find in the original items dictionary
+            // This works even if items have been moved to custom toolbars
+            if (_originalToolbarItems.TryGetValue(itemName, out ToolStripItem? originalItem))
+            {
+                LogToolbar($"[FindItemInAllToolbars] Found {itemName} in _originalToolbarItems");
+                return originalItem;
+            }
+
+            LogToolbar($"[FindItemInAllToolbars] {itemName} NOT found in _originalToolbarItems, searching in toolbars...");
+
+            // Fallback: search in all current toolbars
             // Search in main toolbar
             ToolStripItem? item = ToolStripMain.Items.Cast<ToolStripItem>()
                 .FirstOrDefault(i => i.Name == itemName);
 
             if (item != null)
             {
+                LogToolbar($"[FindItemInAllToolbars] Found {itemName} in ToolStripMain");
                 return item;
             }
 
@@ -316,6 +427,7 @@ partial class FormBrowse
 
             if (item != null)
             {
+                LogToolbar($"[FindItemInAllToolbars] Found {itemName} in ToolStripFilters");
                 return item;
             }
 
@@ -323,7 +435,79 @@ partial class FormBrowse
             item = ToolStripScripts.Items.Cast<ToolStripItem>()
                 .FirstOrDefault(i => i.Name == itemName);
 
+            if (item != null)
+            {
+                LogToolbar($"[FindItemInAllToolbars] Found {itemName} in ToolStripScripts");
+                return item;
+            }
+
+            // If not found in toolbars, search in menus (for menu items added to custom toolbars)
+            LogToolbar($"[FindItemInAllToolbars] {itemName} not found in toolbars, searching in menus...");
+            item = FindItemInMenus(mainMenuStrip, itemName);
+
+            if (item != null)
+            {
+                LogToolbar($"[FindItemInAllToolbars] Found {itemName} in menus");
+            }
+            else
+            {
+                LogToolbar($"[FindItemInAllToolbars] {itemName} NOT FOUND anywhere!");
+            }
+
             return item;
+        }
+
+        // Recursive method to find a menu item by name
+        ToolStripItem? FindItemInMenus(ToolStrip menuStrip, string itemName)
+        {
+            if (menuStrip == null)
+            {
+                return null;
+            }
+
+            // Search in top-level menu items
+            foreach (ToolStripItem menuItem in menuStrip.Items)
+            {
+                if (menuItem.Name == itemName)
+                {
+                    return menuItem;
+                }
+
+                // If it's a menu item with sub-items, search recursively
+                if (menuItem is ToolStripMenuItem menuItemWithSubItems && menuItemWithSubItems.DropDownItems.Count > 0)
+                {
+                    ToolStripItem? found = FindItemInMenuRecursive(menuItemWithSubItems, itemName);
+                    if (found != null)
+                    {
+                        return found;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        ToolStripItem? FindItemInMenuRecursive(ToolStripMenuItem parentMenuItem, string itemName)
+        {
+            foreach (ToolStripItem item in parentMenuItem.DropDownItems)
+            {
+                if (item.Name == itemName)
+                {
+                    return item;
+                }
+
+                // Recursively search in sub-menus
+                if (item is ToolStripMenuItem subMenuItem && subMenuItem.DropDownItems.Count > 0)
+                {
+                    ToolStripItem? found = FindItemInMenuRecursive(subMenuItem, itemName);
+                    if (found != null)
+                    {
+                        return found;
+                    }
+                }
+            }
+
+            return null;
         }
     }
 
@@ -336,12 +520,27 @@ partial class FormBrowse
     private void InsertFetchPullShortcuts()
     {
         int i = ToolStripMain.Items.IndexOf(toolStripButtonPull);
-        ToolStripMain.Items.Insert(i++, CreateCorrespondingToolbarButton(fetchToolStripMenuItem, Command.QuickFetch));
-        ToolStripMain.Items.Insert(i++, CreateCorrespondingToolbarButton(fetchAllToolStripMenuItem));
-        ToolStripMain.Items.Insert(i++, CreateCorrespondingToolbarButton(fetchPruneAllToolStripMenuItem));
-        ToolStripMain.Items.Insert(i++, CreateCorrespondingToolbarButton(mergeToolStripMenuItem, Command.QuickPull));
-        ToolStripMain.Items.Insert(i++, CreateCorrespondingToolbarButton(rebaseToolStripMenuItem1));
-        ToolStripMain.Items.Insert(i++, CreateCorrespondingToolbarButton(pullToolStripMenuItem1, Command.PullOrFetch));
+        ToolStripButton btn1 = CreateCorrespondingToolbarButton(fetchToolStripMenuItem, Command.QuickFetch);
+        ToolStripButton btn2 = CreateCorrespondingToolbarButton(fetchAllToolStripMenuItem);
+        ToolStripButton btn3 = CreateCorrespondingToolbarButton(fetchPruneAllToolStripMenuItem);
+        ToolStripButton btn4 = CreateCorrespondingToolbarButton(mergeToolStripMenuItem, Command.QuickPull);
+        ToolStripButton btn5 = CreateCorrespondingToolbarButton(rebaseToolStripMenuItem1);
+        ToolStripButton btn6 = CreateCorrespondingToolbarButton(pullToolStripMenuItem1, Command.PullOrFetch);
+
+        ToolStripMain.Items.Insert(i++, btn1);
+        ToolStripMain.Items.Insert(i++, btn2);
+        ToolStripMain.Items.Insert(i++, btn3);
+        ToolStripMain.Items.Insert(i++, btn4);
+        ToolStripMain.Items.Insert(i++, btn5);
+        ToolStripMain.Items.Insert(i++, btn6);
+
+        // Store newly created items in the original items dictionary
+        _originalToolbarItems[btn1.Name] = btn1;
+        _originalToolbarItems[btn2.Name] = btn2;
+        _originalToolbarItems[btn3.Name] = btn3;
+        _originalToolbarItems[btn4.Name] = btn4;
+        _originalToolbarItems[btn5.Name] = btn5;
+        _originalToolbarItems[btn6.Name] = btn6;
 
         ToolStripButton CreateCorrespondingToolbarButton(ToolStripMenuItem toolStripMenuItem, Command? command = null)
         {

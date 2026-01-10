@@ -107,10 +107,41 @@ namespace GitUI.CommandsDialogs
             StoreOriginalItems(_formBrowse.ToolStripFilters);
             StoreOriginalItems(_formBrowse.ToolStripScripts);
 
-            // Load all items from built-in toolbars only
+            // Load all items from built-in toolbars
             _toolbarItems["Standard"] = GetToolStripItems(_formBrowse.ToolStripMain);
             _toolbarItems["Filters"] = GetToolStripItems(_formBrowse.ToolStripFilters);
             _toolbarItems["Scripts"] = GetToolStripItems(_formBrowse.ToolStripScripts);
+
+            // Load custom toolbars from FormBrowse panel (for persistence across restarts)
+            Control? toolPanelContainer = _formBrowse.Controls.Cast<Control>()
+                .FirstOrDefault(c => c is ToolStripContainer);
+
+            if (toolPanelContainer is ToolStripContainer toolPanel)
+            {
+                foreach (Control control in toolPanel.TopToolStripPanel.Controls)
+                {
+                    if (control is ToolStripEx customToolStrip &&
+                        customToolStrip.Name.StartsWith("ToolStripCustom"))
+                    {
+                        string toolbarName = customToolStrip.Text; // e.g., "Custom 01"
+
+                        // Store original items from this custom toolbar
+                        StoreOriginalItems(customToolStrip);
+
+                        // Load items
+                        _toolbarItems[toolbarName] = GetToolStripItems(customToolStrip);
+
+                        // Store reference to dynamic toolbar
+                        _dynamicToolbars[toolbarName] = customToolStrip;
+
+                        // Add to combobox if not already present
+                        if (!comboBoxToolbar.Items.Contains(toolbarName))
+                        {
+                            comboBoxToolbar.Items.Add(toolbarName);
+                        }
+                    }
+                }
+            }
         }
 
         private void StoreOriginalItems(ToolStrip? toolStrip)
@@ -861,6 +892,23 @@ namespace GitUI.CommandsDialogs
                     return "--- separator ---";
                 }
 
+                // Check for items with dynamic text that should use friendly name instead
+                // These items have their Text property updated at runtime (e.g., with paths or counts)
+                if (!string.IsNullOrWhiteSpace(item.Name))
+                {
+                    string[] dynamicTextItems =
+                    {
+                        "_NO_TRANSLATE_WorkingDir", // Shows current working directory path
+                        "toolStripButtonPush", // Shows "0 ↑↓" commit count
+                        "branchSelect" // Shows current branch name
+                    };
+
+                    if (dynamicTextItems.Contains(item.Name))
+                    {
+                        return GetFriendlyName(item.Name);
+                    }
+                }
+
                 // Use Text if available
                 if (!string.IsNullOrWhiteSpace(item.Text))
                 {
@@ -889,14 +937,14 @@ namespace GitUI.CommandsDialogs
                     { "toggleSplitViewLayout", "Toggle split view layout" },
                     { "menuCommitInfoPosition", "Commit info position" },
                     { "toolStripButtonLevelUp", "Level up" },
-                    { "_NO_TRANSLATE_WorkingDir", "Working directory" },
-                    { "branchSelect", "Branch selector" },
-                    { "toolStripSplitStash", "Stash" },
+                    { "_NO_TRANSLATE_WorkingDir", "Change working directory" },
+                    { "branchSelect", "Select branch" },
+                    { "toolStripSplitStash", "Manage stashes" },
                     { "toolStripButtonCommit", "Commit" },
                     { "toolStripButtonPull", "Pull" },
                     { "toolStripButtonPush", "Push" },
                     { "toolStripFileExplorer", "File Explorer" },
-                    { "userShell", "Shell" },
+                    { "userShell", "Bash" },
                     { "EditSettings", "Settings" },
 
                     // Filter toolbar items
@@ -1198,8 +1246,8 @@ namespace GitUI.CommandsDialogs
         {
             string itemText = item.Text.Replace("&", "");
 
-            // Skip "..." entries in Start category
-            if (category == "Start" && itemText == "...")
+            // Skip "..." entries in ALL categories
+            if (itemText == "...")
             {
                 return true;
             }
