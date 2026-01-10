@@ -60,6 +60,9 @@ namespace GitUI.CommandsDialogs
             listBoxAvailable.Click += (s, e) => ListBox_SelectedIndexChanged(s, e);
             listBoxCurrent.Click += (s, e) => ListBox_SelectedIndexChanged(s, e);
 
+            // Initialize tooltips
+            InitializeToolTips();
+
             // Update button states
             UpdateToolbarButtons();
 
@@ -68,6 +71,61 @@ namespace GitUI.CommandsDialogs
 
             // Load initial toolbar visibility state
             LoadToolbarVisibility();
+        }
+
+        /// <summary>
+        /// Initialize tooltips for all interactive controls
+        /// </summary>
+        private void InitializeToolTips()
+        {
+            // Toolbar selection
+            toolTip.SetToolTip(comboBoxToolbar, "Select which toolbar to customize");
+            toolTip.SetToolTip(checkBoxToolbarVisible, "Show or hide the selected toolbar in the main window");
+            toolTip.SetToolTip(buttonAddToolbar,
+                "Add a new custom toolbar\n" +
+                "Hold SHIFT while clicking to specify a custom name instead of 'Custom XX'");
+            toolTip.SetToolTip(buttonRemoveToolbar, "Delete the selected custom toolbar (built-in toolbars cannot be deleted)");
+
+            // Category and filtering
+            toolTip.SetToolTip(comboBoxCategory, "Filter available actions by category");
+            toolTip.SetToolTip(textBoxFilterAvailable, "Type to search and filter available actions");
+            toolTip.SetToolTip(buttonClearAvailableFilter, "Clear the search filter for available actions");
+            toolTip.SetToolTip(textBoxFilterCurrent, "Type to search and filter current toolbar actions");
+            toolTip.SetToolTip(buttonClearCurrentFilter, "Clear the search filter for current toolbar actions");
+
+            // Action lists
+            toolTip.SetToolTip(listBoxAvailable, "Available actions that can be added to the toolbar\nDouble-click an action to add it");
+            toolTip.SetToolTip(listBoxCurrent, "Actions currently in the selected toolbar\nDouble-click an action to remove it");
+
+            // Action management buttons
+            toolTip.SetToolTip(buttonAddAll, "Add all available actions (except separator and spacer) to the current toolbar");
+            toolTip.SetToolTip(buttonAdd, "Add the selected action to the current toolbar (→)");
+            toolTip.SetToolTip(buttonRemove, "Remove the selected action from the current toolbar (←)");
+            toolTip.SetToolTip(buttonMoveUp, "Move the selected action up in the toolbar order (↑)");
+            toolTip.SetToolTip(buttonMoveDown, "Move the selected action down in the toolbar order (↓)");
+            toolTip.SetToolTip(buttonClearCurrent, "Remove all actions from the current toolbar");
+
+            // Display mode
+            toolTip.SetToolTip(labelShow, "Choose how toolbar items are displayed");
+            toolTip.SetToolTip(comboBoxDisplayMode,
+                "Icons: Show only icons\n" +
+                "Icons and text: Show both icons and text labels");
+
+            // Toolbar layout
+            toolTip.SetToolTip(buttonToolbarLayout,
+                "Open the toolbar layout configuration window\n" +
+                "Allows you to arrange toolbars in rows and adjust their visual positions");
+            toolTip.SetToolTip(buttonLocateToolbar,
+                "Highlight the selected toolbar in the main window\n" +
+                "Useful for finding where a toolbar is located");
+
+            // Action buttons
+            toolTip.SetToolTip(buttonOK, "Apply changes and close this window");
+            toolTip.SetToolTip(buttonCancel, "Close this window without saving changes");
+            toolTip.SetToolTip(buttonApply, "Apply changes without closing this window");
+            toolTip.SetToolTip(buttonDefaults,
+                "Reset the selected toolbar to its default configuration\n" +
+                "This will restore the original actions and their order");
         }
 
         private void ListBox_SelectedIndexChanged(object? sender, EventArgs e)
@@ -383,12 +441,51 @@ namespace GitUI.CommandsDialogs
             }
 
             string newToolbarName = $"Custom {nextNumber:D2}";
+
+            // If SHIFT is held, show a dialog to let user name the toolbar
+            if ((Control.ModifierKeys & Keys.Shift) == Keys.Shift)
+            {
+                string? customName = ShowToolbarNameDialog(newToolbarName);
+                if (customName == null)
+                {
+                    // User cancelled
+                    return;
+                }
+
+                // Validate the name
+                if (string.IsNullOrWhiteSpace(customName))
+                {
+                    MessageBox.Show(
+                        "Toolbar name cannot be empty.",
+                        "Invalid Name",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Check if name already exists
+                if (comboBoxToolbar.Items.Cast<string>().Any(name => name.Equals(customName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    MessageBox.Show(
+                        $"A toolbar named '{customName}' already exists.",
+                        "Duplicate Name",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+
+                newToolbarName = customName;
+            }
+
             comboBoxToolbar.Items.Add(newToolbarName);
+
+            // Create a sanitized name for the ToolStrip control (remove spaces and special chars)
+            string sanitizedName = new string(newToolbarName.Where(c => char.IsLetterOrDigit(c)).ToArray());
 
             // Create a new physical ToolStrip for this custom toolbar
             ToolStripEx newToolStrip = new()
             {
-                Name = $"ToolStripCustom{nextNumber:D2}",
+                Name = $"ToolStripCustom{sanitizedName}",
                 Text = newToolbarName,
                 Visible = true,
                 GripStyle = ToolStripGripStyle.Visible,
@@ -405,6 +502,73 @@ namespace GitUI.CommandsDialogs
 
             // Switch to the new toolbar (this will trigger ComboBoxToolbar_SelectedIndexChanged)
             comboBoxToolbar.SelectedItem = newToolbarName;
+        }
+
+        private string? ShowToolbarNameDialog(string defaultName)
+        {
+            using Form inputForm = new()
+            {
+                Text = "New Toolbar",
+                Width = 350,
+                Height = 150,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                StartPosition = FormStartPosition.CenterParent,
+                MaximizeBox = false,
+                MinimizeBox = false
+            };
+
+            Label label = new()
+            {
+                Text = "Enter toolbar name:",
+                Left = 15,
+                Top = 20,
+                Width = 300
+            };
+
+            TextBox textBox = new()
+            {
+                Text = defaultName,
+                Left = 15,
+                Top = 45,
+                Width = 300
+            };
+
+            Button confirmButton = new()
+            {
+                Text = "OK",
+                DialogResult = DialogResult.OK,
+                Left = 155,
+                Top = 80,
+                Width = 75
+            };
+
+            Button cancelButton = new()
+            {
+                Text = "Cancel",
+                DialogResult = DialogResult.Cancel,
+                Left = 240,
+                Top = 80,
+                Width = 75
+            };
+
+            inputForm.Controls.Add(label);
+            inputForm.Controls.Add(textBox);
+            inputForm.Controls.Add(confirmButton);
+            inputForm.Controls.Add(cancelButton);
+            inputForm.AcceptButton = confirmButton;
+            inputForm.CancelButton = cancelButton;
+
+            // Select all text for easy replacement
+            textBox.SelectAll();
+
+            DialogResult result = inputForm.ShowDialog(this);
+
+            if (result == DialogResult.OK)
+            {
+                return textBox.Text.Trim();
+            }
+
+            return null;
         }
 
         private void ButtonRemoveToolbar_Click(object? sender, EventArgs e)
@@ -950,6 +1114,44 @@ namespace GitUI.CommandsDialogs
 
         private class ToolStripItemWrapper
         {
+            // Static collections to avoid recreating at each call
+            private static readonly HashSet<string> DynamicTextItems = new()
+            {
+                "_NO_TRANSLATE_WorkingDir", // Shows current working directory path
+                "WorkingDirectoryToolStripSplitButton", // Shows current working directory path
+                "toolStripButtonPush", // Shows "0 ↑↓" commit count
+                "branchSelect" // Shows current branch name
+            };
+
+            private static readonly Dictionary<string, string> FriendlyNames = new()
+            {
+                // Main toolbar items
+                { "RefreshButton", "Refresh" },
+                { "toggleLeftPanel", "Toggle left panel" },
+                { "toggleSplitViewLayout", "Toggle split view layout" },
+                { "menuCommitInfoPosition", "Commit info position" },
+                { "toolStripButtonLevelUp", "Level up" },
+                { "_NO_TRANSLATE_WorkingDir", "Change working directory" },
+                { "WorkingDirectoryToolStripSplitButton", "Change working directory" },
+                { "branchSelect", "Select branch" },
+                { "toolStripSplitStash", "Manage stashes" },
+                { "toolStripButtonCommit", "Commit" },
+                { "toolStripButtonPull", "Pull" },
+                { "toolStripButtonPush", "Push" },
+                { "toolStripFileExplorer", "File Explorer" },
+                { "userShell", "Bash" },
+                { "EditSettings", "Settings" },
+
+                // Filter toolbar items
+                { "tsbShowReflog", "Show all reflog references" },
+                { "tsbRevisionFilter", "Advanced filter" },
+                { "tsmiShowOnlyFirstParent", "Show only first parent" },
+                { "ToolStripLabel1", "Branch type" },
+                { "ToolStripLabel2", "Filter type" },
+                { "tscboBranchFilter", "Show all branches" },
+                { "toolStripTextBoxFilter", "Text Filter" }
+            };
+
             public ToolStripItem? Item { get; }
             public string DisplayName { get; }
 
@@ -975,14 +1177,7 @@ namespace GitUI.CommandsDialogs
                 // These items have their Text property updated at runtime (e.g., with paths or counts)
                 if (!string.IsNullOrWhiteSpace(item.Name))
                 {
-                    string[] dynamicTextItems =
-                    {
-                        "_NO_TRANSLATE_WorkingDir", // Shows current working directory path
-                        "toolStripButtonPush", // Shows "0 ↑↓" commit count
-                        "branchSelect" // Shows current branch name
-                    };
-
-                    if (dynamicTextItems.Contains(item.Name))
+                    if (DynamicTextItems.Contains(item.Name))
                     {
                         return GetFriendlyName(item.Name);
                     }
@@ -991,8 +1186,22 @@ namespace GitUI.CommandsDialogs
                 // Use Text if available
                 if (!string.IsNullOrWhiteSpace(item.Text))
                 {
-                    // Remove & character used for keyboard shortcuts in menus
-                    return item.Text.Replace("&", "");
+                    string text = item.Text.Replace("&", "");
+
+                    // Detect if text looks like a Windows path (working directory)
+                    // This handles cases where the item name wasn't detected
+                    if (text.Length >= 3 && text[1] == ':' && text[2] == '\\')
+                    {
+                        return "Change working directory";
+                    }
+
+                    // Detect push count pattern like "0 ↑↓" or "5 ↑↓"
+                    if (System.Text.RegularExpressions.Regex.IsMatch(text, @"^\d+\s*[↑↓]+"))
+                    {
+                        return "Push";
+                    }
+
+                    return text;
                 }
 
                 // Try to get friendly name from Name property
@@ -1007,36 +1216,7 @@ namespace GitUI.CommandsDialogs
 
             private static string GetFriendlyName(string name)
             {
-                // Map of known names to friendly names
-                var friendlyNames = new Dictionary<string, string>
-                {
-                    // Main toolbar items
-                    { "RefreshButton", "Refresh" },
-                    { "toggleLeftPanel", "Toggle left panel" },
-                    { "toggleSplitViewLayout", "Toggle split view layout" },
-                    { "menuCommitInfoPosition", "Commit info position" },
-                    { "toolStripButtonLevelUp", "Level up" },
-                    { "_NO_TRANSLATE_WorkingDir", "Change working directory" },
-                    { "branchSelect", "Select branch" },
-                    { "toolStripSplitStash", "Manage stashes" },
-                    { "toolStripButtonCommit", "Commit" },
-                    { "toolStripButtonPull", "Pull" },
-                    { "toolStripButtonPush", "Push" },
-                    { "toolStripFileExplorer", "File Explorer" },
-                    { "userShell", "Bash" },
-                    { "EditSettings", "Settings" },
-
-                    // Filter toolbar items
-                    { "tsbShowReflog", "Show all reflog references" },
-                    { "tsbRevisionFilter", "Advanced filter" },
-                    { "tsmiShowOnlyFirstParent", "Show only first parent" },
-                    { "ToolStripLabel1", "Branch type" },
-                    { "ToolStripLabel2", "Filter type" },
-                    { "tscboBranchFilter", "Show all branches" },
-                    { "toolStripTextBoxFilter", "Text Filter" }
-                };
-
-                if (friendlyNames.TryGetValue(name, out string? friendlyName))
+                if (FriendlyNames.TryGetValue(name, out string? friendlyName))
                 {
                     return friendlyName;
                 }

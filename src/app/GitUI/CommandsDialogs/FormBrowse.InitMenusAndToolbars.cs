@@ -390,6 +390,13 @@ partial class FormBrowse
 
                     if (item != null)
                     {
+                        // Convert ToolStripMenuItem to ToolStripButton if needed for custom toolbar
+                        if (item is ToolStripMenuItem menuItem)
+                        {
+                            item = ConvertMenuItemToButton(menuItem);
+                            LogToolbar($"[ApplyLayoutToToolStrip] Converted {menuItem.Name} from MenuItem to Button");
+                        }
+
                         // Remove from current owner if different
                         if (item.Owner != null && item.Owner != toolStrip)
                         {
@@ -443,6 +450,32 @@ partial class FormBrowse
             }
 
             LogToolbar($"[ApplyLayoutToToolStrip] Final item count in {toolStrip.Name}: {toolStrip.Items.Count}");
+        }
+
+        ToolStripButton ConvertMenuItemToButton(ToolStripMenuItem menuItem)
+        {
+            // Create a new ToolStripButton that mimics the menu item
+            ToolStripButton button = new()
+            {
+                Name = $"btn_{menuItem.Name}",
+                Text = menuItem.Text,
+                Image = menuItem.Image,
+                ToolTipText = string.IsNullOrEmpty(menuItem.ToolTipText) ? menuItem.Text.Replace("&", "") : menuItem.ToolTipText,
+                DisplayStyle = ToolStripItemDisplayStyle.Image,
+                ImageTransparentColor = menuItem.ImageTransparentColor,
+                Tag = menuItem, // Store reference to original menu item
+                Enabled = menuItem.Enabled,
+                Visible = menuItem.Visible
+            };
+
+            // When button is clicked, trigger the original menu item's click
+            button.Click += (s, e) =>
+            {
+                // Trigger the original menu item's click event
+                menuItem.PerformClick();
+            };
+
+            return button;
         }
 
         ToolStripItem? FindItemInAllToolbars(string itemName)

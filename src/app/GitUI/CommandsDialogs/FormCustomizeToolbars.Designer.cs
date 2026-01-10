@@ -6,6 +6,7 @@ namespace GitUI.CommandsDialogs
         /// Required designer variable.
         /// </summary>
         private System.ComponentModel.IContainer components = null;
+        private System.Windows.Forms.ToolTip toolTip;
 
         /// <summary>
         /// Clean up any resources being used.
@@ -28,6 +29,8 @@ namespace GitUI.CommandsDialogs
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
+            this.toolTip = new System.Windows.Forms.ToolTip(this.components);
             this.labelAvailable = new System.Windows.Forms.Label();
             this.labelCurrent = new System.Windows.Forms.Label();
             this.listBoxAvailable = new System.Windows.Forms.ListBox();

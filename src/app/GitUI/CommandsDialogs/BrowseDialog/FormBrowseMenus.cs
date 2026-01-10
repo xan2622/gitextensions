@@ -212,6 +212,7 @@ public class FormBrowseMenus : ITranslate, IDisposable
     private void RefreshContextMenu()
     {
         // Remove disposed or invalid toolbars from registered list
+        // This is needed because RefreshContextMenu can be called directly from Opening event
         _registeredToolbars.RemoveAll(ts => ts.IsDisposed || string.IsNullOrEmpty(ts.Text));
 
         // Clear context menu
