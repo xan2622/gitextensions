@@ -285,6 +285,23 @@ partial class FormBrowse
                         LogToolbar($"[ApplySavedToolbarLayout] ERROR: Custom toolbar not found: {metadata.Name}");
                     }
                 }
+
+                // After items have been added to custom toolbars, refresh the toolbar menus to include them
+                Dictionary<string, ToolStrip> dynamicToolbars = new();
+                foreach (Control control in toolPanel.TopToolStripPanel.Controls)
+                {
+                    if (control is ToolStrip toolStrip && toolStrip.Name.StartsWith("ToolStripCustom"))
+                    {
+                        dynamicToolbars[toolStrip.Name] = toolStrip;
+                        LogToolbar($"[ApplySavedToolbarLayout] Added {toolStrip.Name} ({toolStrip.Text}) with {toolStrip.Items.Count} items to dynamic toolbars");
+                    }
+                }
+
+                if (dynamicToolbars.Count > 0)
+                {
+                    LogToolbar($"[ApplySavedToolbarLayout] Refreshing toolbar menus with {dynamicToolbars.Count} dynamic toolbars");
+                    _formBrowseMenus.RefreshToolbarsMenu(dynamicToolbars);
+                }
             }
         }
 

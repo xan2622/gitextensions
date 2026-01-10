@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Drawing.Drawing2D;
 using System.Globalization;
@@ -478,6 +478,21 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
     protected override void OnLoad(EventArgs e)
     {
         _formBrowseMenus.CreateToolbarsMenus(ToolStripMain, ToolStripFilters, ToolStripScripts);
+
+        // Refresh toolbar menus with custom toolbars
+        Dictionary<string, ToolStrip> dynamicToolbars = new();
+        foreach (Control control in toolPanel.TopToolStripPanel.Controls)
+        {
+            if (control is ToolStrip toolStrip && toolStrip.Name.StartsWith("ToolStripCustom"))
+            {
+                dynamicToolbars[toolStrip.Name] = toolStrip;
+            }
+        }
+
+        if (dynamicToolbars.Count > 0)
+        {
+            _formBrowseMenus.RefreshToolbarsMenu(dynamicToolbars);
+        }
 
         RefreshSplitViewLayout();
         LayoutRevisionInfo();

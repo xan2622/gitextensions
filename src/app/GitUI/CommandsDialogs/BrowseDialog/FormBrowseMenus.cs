@@ -1,4 +1,4 @@
-﻿using GitCommands;
+using GitCommands;
 using GitExtensions.Extensibility;
 using GitExtensions.Extensibility.Translations;
 using GitUI.CommandsDialogs.BrowseDialog;
@@ -309,7 +309,10 @@ public class FormBrowseMenus : ITranslate, IDisposable
 
             toolbarItem.Visible = visible;
 
-            ToolStripMenuItem menuToolbarItem = new(toolbarItem.ToolTipText)
+            // Get display text for the menu item
+            string displayText = GetToolbarItemDisplayText(toolbarItem);
+
+            ToolStripMenuItem menuToolbarItem = new(displayText)
             {
                 Checked = visible,
                 CheckOnClick = true,
@@ -366,6 +369,63 @@ public class FormBrowseMenus : ITranslate, IDisposable
             groupName = string.Empty;
             return false;
         }
+    }
+
+    /// <summary>
+    /// Gets a display text for a toolbar item, using ToolTipText, Text, or Name.
+    /// Handles special cases for items with dynamic text.
+    /// </summary>
+    private static string GetToolbarItemDisplayText(ToolStripItem item)
+    {
+        if (item is null)
+        {
+            return "Unknown";
+        }
+
+        if (item is ToolStripSeparator)
+        {
+            return "--- separator ---";
+        }
+
+        // Check for items with dynamic text that should use a friendly name
+        if (!string.IsNullOrWhiteSpace(item.Name))
+        {
+            // Items with dynamic text
+            if (item.Name == "_NO_TRANSLATE_WorkingDir")
+            {
+                return "Change working directory";
+            }
+
+            if (item.Name == "toolStripButtonPush")
+            {
+                return "Push";
+            }
+
+            if (item.Name == "branchSelect")
+            {
+                return "Select branch";
+            }
+        }
+
+        // Use ToolTipText if available (most common case)
+        if (!string.IsNullOrWhiteSpace(item.ToolTipText))
+        {
+            return item.ToolTipText.Replace("&", "");
+        }
+
+        // Use Text if available
+        if (!string.IsNullOrWhiteSpace(item.Text))
+        {
+            return item.Text.Replace("&", "");
+        }
+
+        // Fallback to Name
+        if (!string.IsNullOrWhiteSpace(item.Name))
+        {
+            return item.Name;
+        }
+
+        return $"[{item.GetType().Name}]";
     }
 
     private static void AdaptSeparatorsVisibility(ToolStrip senderToolStrip)
