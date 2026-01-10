@@ -167,6 +167,9 @@ public class FormBrowseMenus : ITranslate, IDisposable
             }
         }
 
+        // Remove disposed or invalid toolbars from registered list
+        _registeredToolbars.RemoveAll(ts => ts.IsDisposed || string.IsNullOrEmpty(ts.Text));
+
         // Clear all items except separator and Customize
         List<ToolStripItem> itemsToRemove = new();
         foreach (ToolStripItem item in _toolbarsMenuItem.DropDownItems)
@@ -208,6 +211,9 @@ public class FormBrowseMenus : ITranslate, IDisposable
     /// </summary>
     private void RefreshContextMenu()
     {
+        // Remove disposed or invalid toolbars from registered list
+        _registeredToolbars.RemoveAll(ts => ts.IsDisposed || string.IsNullOrEmpty(ts.Text));
+
         // Clear context menu
         _toolStripContextMenu.Items.Clear();
 

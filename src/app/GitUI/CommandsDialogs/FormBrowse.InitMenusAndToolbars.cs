@@ -178,8 +178,17 @@ partial class FormBrowse
                     ForeColor = ToolStripMain.ForeColor
                 };
 
-                // Add to panel (will be reordered by WorkaroundToolbarLocationBug)
-                toolPanel.TopToolStripPanel.Controls.Add(newToolStrip);
+                // Only add visible toolbars to panel to prevent empty rows/spaces
+                // Invisible toolbars will be added later when they become visible
+                if (metadata.Visible)
+                {
+                    toolPanel.TopToolStripPanel.Controls.Add(newToolStrip);
+                    LogToolbar($"[LoadDynamicToolbarsFromConfig] Added visible toolbar: {metadata.Name}");
+                }
+                else
+                {
+                    LogToolbar($"[LoadDynamicToolbarsFromConfig] Skipped invisible toolbar: {metadata.Name}");
+                }
             }
         }
 
@@ -218,7 +227,7 @@ partial class FormBrowse
             // 3. Clear panel
             toolPanel.TopToolStripPanel.Controls.Clear();
 
-            // 4. Add all toolbars (no need to reverse - order is already correct for adding)
+            // 4. Add only visible toolbars to prevent empty rows
             foreach (ToolStrip toolStrip in allToolStrips)
             {
                 if (toolStrip.Visible)
@@ -228,14 +237,16 @@ partial class FormBrowse
             }
 
 #if DEBUG
-            // 4. Assert toolbars are on the same row
-            foreach (ToolStrip toolStrip in allToolStrips.Where(ts => ts.Visible))
+            // 5. Get only visible toolbars for assertion checks
+            var visibleToolStrips = allToolStrips.Where(ts => ts.Visible).ToArray();
+
+            // 6. Assert toolbars are on the same row
+            foreach (ToolStrip toolStrip in visibleToolStrips)
             {
                 DebugHelpers.Assert(toolStrip.Top == 0, $"{toolStrip.Name} must be placed on the 1st row");
             }
 
-            // 5. Assert the correct order of toolbars
-            var visibleToolStrips = allToolStrips.Where(ts => ts.Visible).ToArray();
+            // 7. Assert the correct order of toolbars
             for (int i = visibleToolStrips.Length - 1; i > 0; i--)
             {
                 DebugHelpers.Assert(visibleToolStrips[i].Left < visibleToolStrips[i - 1].Left,
@@ -549,6 +560,49 @@ partial class FormBrowse
             }
 
             return null;
+        }
+    }
+
+    public void ReorganizeToolbars()
+    {
+        // Clear and reorganize toolbars to prevent empty rows/spaces
+        // This is called when toolbar visibility changes
+
+        // 1. Collect all toolbars (built-in and custom)
+        List<ToolStrip> customToolStrips = new();
+        foreach (Control control in toolPanel.TopToolStripPanel.Controls)
+        {
+            if (control is ToolStrip toolStrip &&
+                toolStrip.Name.StartsWith("ToolStripCustom") &&
+                !toolStrip.IsDisposed &&
+                !string.IsNullOrEmpty(toolStrip.Text))
+            {
+                customToolStrips.Add(toolStrip);
+            }
+        }
+
+        // 2. Build the list in the order we need to ADD them
+        // (reverse of visual order because ToolStripPanel adds from right to left)
+        List<ToolStrip> allToolStrips = new();
+
+        // Custom toolbars first (will appear rightmost)
+        allToolStrips.AddRange(customToolStrips);
+
+        // Then built-in toolbars in reverse visual order
+        allToolStrips.Add(ToolStripScripts);  // Will appear before custom
+        allToolStrips.Add(ToolStripFilters);  // Will appear before Scripts
+        allToolStrips.Add(ToolStripMain);     // Will appear leftmost (Standard)
+
+        // 3. Clear panel
+        toolPanel.TopToolStripPanel.Controls.Clear();
+
+        // 4. Add only visible toolbars to prevent empty rows
+        foreach (ToolStrip toolStrip in allToolStrips)
+        {
+            if (toolStrip.Visible && !toolStrip.IsDisposed)
+            {
+                toolPanel.TopToolStripPanel.Controls.Add(toolStrip);
+            }
         }
     }
 

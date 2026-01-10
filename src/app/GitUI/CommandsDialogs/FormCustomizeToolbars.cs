@@ -95,8 +95,9 @@ namespace GitUI.CommandsDialogs
                 // Enable Remove button only if there's a selection in the right ListBox
                 buttonRemove.Enabled = index >= 0 && listBoxCurrent.Items.Count > 0;
 
-                // Disable Add button when right ListBox is selected
-                buttonAdd.Enabled = false;
+                // Keep Add button enabled if there's a selection in the left ListBox
+                // This allows users to add items even when focus is in the right ListBox
+                buttonAdd.Enabled = listBoxAvailable.SelectedIndex >= 0;
 
                 // Enable AddAll button if there are items other than separator and spacer
                 buttonAddAll.Enabled = listBoxAvailable.Items.Count > 2;
@@ -325,7 +326,16 @@ namespace GitUI.CommandsDialogs
 
             if (toolbar != null)
             {
-                toolbar.Visible = checkBoxToolbarVisible.Checked;
+                bool wasVisible = toolbar.Visible;
+                bool isVisible = checkBoxToolbarVisible.Checked;
+
+                toolbar.Visible = isVisible;
+
+                // If visibility changed, reorganize toolbars to prevent empty rows/spaces
+                if (wasVisible != isVisible)
+                {
+                    _formBrowse.ReorganizeToolbars();
+                }
             }
         }
 
