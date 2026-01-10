@@ -488,8 +488,16 @@ namespace GitUI.CommandsDialogs
                 Name = $"ToolStripCustom{sanitizedName}",
                 Text = newToolbarName,
                 Visible = true,
+
+                // Match built-in toolbar properties for consistent appearance
+                ClickThrough = true,
+                Dock = DockStyle.None,
+                DrawBorder = false,
+                GripEnabled = false,
                 GripStyle = ToolStripGripStyle.Visible,
-                GripMargin = new System.Windows.Forms.Padding(2, 0, 2, 0),
+                GripMargin = new System.Windows.Forms.Padding(0),
+                Padding = new System.Windows.Forms.Padding(0),
+                LayoutStyle = ToolStripLayoutStyle.HorizontalStackWithOverflow,
                 BackColor = _formBrowse.ToolStripMain.BackColor,
                 ForeColor = _formBrowse.ToolStripMain.ForeColor
             };
@@ -601,6 +609,9 @@ namespace GitUI.CommandsDialogs
 
                     // Refresh the toolbars menu to remove the deleted toolbar
                     _formBrowseMenus?.RefreshToolbarsMenu(_dynamicToolbars);
+
+                    // Reorganize toolbars to eliminate empty spaces left by removed toolbar
+                    _formBrowse.ReorganizeToolbars();
                 }
             }
         }
@@ -988,10 +999,22 @@ namespace GitUI.CommandsDialogs
                             {
                                 itemToAdd.Owner.Items.Remove(itemToAdd);
                             }
+
+                            // Ensure item has an image (use default if none)
+                            if (itemToAdd.Image == null)
+                            {
+                                itemToAdd.Image = global::GitUI.Properties.Images.ApplicationBlue;
+                            }
                         }
                         else
                         {
                             itemToAdd = wrapper.Item;
+
+                            // Ensure item has an image (use default if none)
+                            if (itemToAdd != null && itemToAdd.Image == null)
+                            {
+                                itemToAdd.Image = global::GitUI.Properties.Images.ApplicationBlue;
+                            }
                         }
                     }
 
@@ -1615,12 +1638,21 @@ namespace GitUI.CommandsDialogs
                 ? SystemBrushes.HighlightText
                 : SystemBrushes.WindowText;
 
+            // Create StringFormat with vertical centering
+            using StringFormat stringFormat = new()
+            {
+                LineAlignment = StringAlignment.Center,  // Vertical centering
+                Alignment = StringAlignment.Near,        // Horizontal left alignment
+                Trimming = StringTrimming.EllipsisCharacter,
+                FormatFlags = StringFormatFlags.NoWrap
+            };
+
             e.Graphics.DrawString(
                 wrapper.DisplayName,
                 e.Font ?? listBox.Font,
                 textBrush,
                 textRect,
-                StringFormat.GenericDefault);
+                stringFormat);
 
             e.DrawFocusRectangle();
         }

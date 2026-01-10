@@ -172,8 +172,16 @@ partial class FormBrowse
                     Name = $"ToolStripCustom{metadata.Name.Replace("Custom ", "")}",
                     Text = metadata.Name,
                     Visible = metadata.Visible,
+
+                    // Match built-in toolbar properties for consistent appearance
+                    ClickThrough = true,
+                    Dock = DockStyle.None,
+                    DrawBorder = false,
+                    GripEnabled = false,
                     GripStyle = ToolStripGripStyle.Visible,
-                    GripMargin = new System.Windows.Forms.Padding(2, 0, 2, 0),
+                    GripMargin = new System.Windows.Forms.Padding(0),
+                    Padding = new System.Windows.Forms.Padding(0),
+                    LayoutStyle = ToolStripLayoutStyle.HorizontalStackWithOverflow,
                     BackColor = ToolStripMain.BackColor,
                     ForeColor = ToolStripMain.ForeColor
                 };
@@ -601,7 +609,8 @@ partial class FormBrowse
         // Clear and reorganize toolbars to prevent empty rows/spaces
         // This is called when toolbar visibility changes
 
-        // 1. Collect all toolbars (built-in and custom)
+        // 1. Collect all toolbars (built-in and custom) - INCLUDING invisible ones
+        // We need to collect them BEFORE clearing the panel
         List<ToolStrip> customToolStrips = new();
         foreach (Control control in toolPanel.TopToolStripPanel.Controls)
         {
@@ -626,14 +635,17 @@ partial class FormBrowse
         allToolStrips.Add(ToolStripFilters);  // Will appear before Scripts
         allToolStrips.Add(ToolStripMain);     // Will appear leftmost (Standard)
 
-        // 3. Clear panel
+        // 3. Clear panel (this removes all toolbars, visible or not)
         toolPanel.TopToolStripPanel.Controls.Clear();
 
-        // 4. Add only visible toolbars to prevent empty rows
+        // 4. Add ALL toolbars back (including invisible ones)
+        // The ToolStripPanel will handle the visibility automatically
         foreach (ToolStrip toolStrip in allToolStrips)
         {
-            if (toolStrip.Visible && !toolStrip.IsDisposed)
+            if (!toolStrip.IsDisposed)
             {
+                // The toolbar's Visible property is preserved
+                // ToolStripPanel will handle layout of visible/invisible controls
                 toolPanel.TopToolStripPanel.Controls.Add(toolStrip);
             }
         }
