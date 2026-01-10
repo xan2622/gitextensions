@@ -65,6 +65,9 @@ namespace GitUI.CommandsDialogs
 
             LoadToolbarItems();
             LoadCurrentLayout();
+
+            // Load initial toolbar visibility state
+            LoadToolbarVisibility();
         }
 
         private void ListBox_SelectedIndexChanged(object? sender, EventArgs e)
@@ -280,8 +283,61 @@ namespace GitUI.CommandsDialogs
             }
 
             _currentToolbarName = comboBoxToolbar.SelectedItem?.ToString() ?? "Standard";
+
+            // Load the visibility state for the selected toolbar
+            LoadToolbarVisibility();
+
             LoadCurrentLayout();
             UpdateToolbarButtons();
+        }
+
+        private void CheckBoxToolbarVisible_CheckedChanged(object? sender, EventArgs e)
+        {
+            // Save the visibility state for the current toolbar
+            SaveToolbarVisibility();
+        }
+
+        private void LoadToolbarVisibility()
+        {
+            // Get the current toolbar from FormBrowse
+            ToolStrip? toolbar = GetCurrentToolStrip();
+
+            if (toolbar != null)
+            {
+                // Temporarily disable the event handler to avoid recursion
+                checkBoxToolbarVisible.CheckedChanged -= CheckBoxToolbarVisible_CheckedChanged;
+                checkBoxToolbarVisible.Checked = toolbar.Visible;
+                checkBoxToolbarVisible.CheckedChanged += CheckBoxToolbarVisible_CheckedChanged;
+            }
+            else
+            {
+                // Default to checked if toolbar not found
+                checkBoxToolbarVisible.CheckedChanged -= CheckBoxToolbarVisible_CheckedChanged;
+                checkBoxToolbarVisible.Checked = true;
+                checkBoxToolbarVisible.CheckedChanged += CheckBoxToolbarVisible_CheckedChanged;
+            }
+        }
+
+        private void SaveToolbarVisibility()
+        {
+            // Update the toolbar visibility in FormBrowse
+            ToolStrip? toolbar = GetCurrentToolStrip();
+
+            if (toolbar != null)
+            {
+                toolbar.Visible = checkBoxToolbarVisible.Checked;
+            }
+        }
+
+        private ToolStrip? GetCurrentToolStrip()
+        {
+            return _currentToolbarName switch
+            {
+                "Standard" => _formBrowse.Controls.Find("ToolStripMain", true).FirstOrDefault() as ToolStrip,
+                "Filters" => _formBrowse.Controls.Find("ToolStripFilters", true).FirstOrDefault() as ToolStrip,
+                "Scripts" => _formBrowse.Controls.Find("ToolStripScripts", true).FirstOrDefault() as ToolStrip,
+                _ => _dynamicToolbars.ContainsKey(_currentToolbarName) ? _dynamicToolbars[_currentToolbarName] : null
+            };
         }
 
         private void ButtonClearCurrent_Click(object? sender, EventArgs e)
@@ -812,6 +868,19 @@ namespace GitUI.CommandsDialogs
                 {
                     Name = toolbarName,
                     Index = toolbarIndex,
+                    Visible = toolStrip?.Visible ?? true
+                });
+            }
+
+            // Save all toolbars visibility metadata (built-in and custom)
+            config.ToolbarsVisibility.Clear();
+            foreach (string toolbarName in allToolbarNames)
+            {
+                ToolStrip? toolStrip = GetToolStripByName(toolbarName);
+
+                config.ToolbarsVisibility.Add(new ToolbarMetadata
+                {
+                    Name = toolbarName,
                     Visible = toolStrip?.Visible ?? true
                 });
             }
@@ -1364,6 +1433,73 @@ namespace GitUI.CommandsDialogs
                 StringFormat.GenericDefault);
 
             e.DrawFocusRectangle();
+        }
+
+        private void ButtonLocateToolbar_Click(object? sender, EventArgs e)
+        {
+            // Get the current toolbar
+            ToolStrip? toolbar = GetCurrentToolStrip();
+
+            if (toolbar == null)
+            {
+                MessageBox.Show(
+                    "Could not find the selected toolbar.",
+                    "Locate Toolbar",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Start the flashing animation (fire and forget)
+            _ = FlashToolbarAsync(toolbar);
+        }
+
+        private async Task FlashToolbarAsync(ToolStrip toolbar)
+        {
+            // Save original background color
+            Color originalBackColor = toolbar.BackColor;
+
+            // Flash parameters
+            const int flashDurationMs = 3000; // 3 seconds total
+            const int stepDurationMs = 100;    // Update every 100ms
+            int steps = flashDurationMs / stepDurationMs;
+
+            try
+            {
+                // Animate from transparent to red and back
+                for (int i = 0; i < steps; i++)
+                {
+                    // Calculate alpha value using a sine wave for smooth fade in/out
+                    double progress = (double)i / steps;
+                    double sineWave = Math.Sin(progress * Math.PI * 4); // 4 complete cycles in 3 seconds
+                    int alpha = (int)(Math.Abs(sineWave) * 180); // Max alpha = 180 (not fully opaque)
+
+                    // Blend red with original background
+                    Color flashColor = Color.FromArgb(alpha, Color.Red);
+                    toolbar.BackColor = BlendColors(originalBackColor, flashColor);
+
+                    // Wait before next frame
+                    await Task.Delay(stepDurationMs);
+                }
+            }
+            finally
+            {
+                // Restore original color
+                toolbar.BackColor = originalBackColor;
+            }
+        }
+
+        private Color BlendColors(Color background, Color overlay)
+        {
+            // Alpha blending formula
+            int alpha = overlay.A;
+            int invAlpha = 255 - alpha;
+
+            int r = ((overlay.R * alpha) + (background.R * invAlpha)) / 255;
+            int g = ((overlay.G * alpha) + (background.G * invAlpha)) / 255;
+            int b = ((overlay.B * alpha) + (background.B * invAlpha)) / 255;
+
+            return Color.FromArgb(r, g, b);
         }
     }
 }

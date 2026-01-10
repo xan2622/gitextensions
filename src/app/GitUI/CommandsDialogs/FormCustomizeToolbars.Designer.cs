@@ -42,6 +42,7 @@ namespace GitUI.CommandsDialogs
             this.buttonCancel = new System.Windows.Forms.Button();
             this.buttonDefaults = new System.Windows.Forms.Button();
             this.comboBoxToolbar = new System.Windows.Forms.ComboBox();
+            this.checkBoxToolbarVisible = new System.Windows.Forms.CheckBox();
             this.labelToolbar = new System.Windows.Forms.Label();
             this.textBoxFilterAvailable = new System.Windows.Forms.TextBox();
             this.textBoxFilterCurrent = new System.Windows.Forms.TextBox();
@@ -53,6 +54,7 @@ namespace GitUI.CommandsDialogs
             this.comboBoxCategory = new System.Windows.Forms.ComboBox();
             this.labelPosition = new System.Windows.Forms.Label();
             this.buttonToolbarLayout = new System.Windows.Forms.Button();
+            this.buttonLocateToolbar = new System.Windows.Forms.Button();
             this.labelShow = new System.Windows.Forms.Label();
             this.comboBoxDisplayMode = new System.Windows.Forms.ComboBox();
             this.SuspendLayout();
@@ -85,23 +87,23 @@ namespace GitUI.CommandsDialogs
             this.textBoxFilterAvailable.TextChanged += new System.EventHandler(this.TextBoxFilterAvailable_TextChanged);
             // 
             // buttonClearAvailableFilter
-            // 
-            this.buttonClearAvailableFilter.Location = new System.Drawing.Point(338, 70);
+            //
+            this.buttonClearAvailableFilter.Location = new System.Drawing.Point(338, 69);
             this.buttonClearAvailableFilter.Name = "buttonClearAvailableFilter";
-            this.buttonClearAvailableFilter.Size = new System.Drawing.Size(25, 23);
+            this.buttonClearAvailableFilter.Size = new System.Drawing.Size(25, 25);
             this.buttonClearAvailableFilter.TabIndex = 24;
             this.buttonClearAvailableFilter.Text = "✕";
             this.buttonClearAvailableFilter.UseVisualStyleBackColor = true;
             this.buttonClearAvailableFilter.Click += new System.EventHandler(this.ButtonClearAvailableFilter_Click);
             // 
             // listBoxAvailable
-            // 
+            //
             this.listBoxAvailable.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
             this.listBoxAvailable.FormattingEnabled = true;
             this.listBoxAvailable.ItemHeight = 24;
             this.listBoxAvailable.Location = new System.Drawing.Point(12, 100);
             this.listBoxAvailable.Name = "listBoxAvailable";
-            this.listBoxAvailable.Size = new System.Drawing.Size(350, 355);
+            this.listBoxAvailable.Size = new System.Drawing.Size(350, 395);
             this.listBoxAvailable.TabIndex = 3;
             this.listBoxAvailable.DrawItem += new System.Windows.Forms.DrawItemEventHandler(this.ListBox_DrawItem);
             this.listBoxAvailable.DoubleClick += new System.EventHandler(this.ListBoxAvailable_DoubleClick);
@@ -116,23 +118,23 @@ namespace GitUI.CommandsDialogs
             this.textBoxFilterCurrent.TextChanged += new System.EventHandler(this.TextBoxFilterCurrent_TextChanged);
             // 
             // buttonClearCurrentFilter
-            // 
-            this.buttonClearCurrentFilter.Location = new System.Drawing.Point(765, 70);
+            //
+            this.buttonClearCurrentFilter.Location = new System.Drawing.Point(766, 69);
             this.buttonClearCurrentFilter.Name = "buttonClearCurrentFilter";
-            this.buttonClearCurrentFilter.Size = new System.Drawing.Size(25, 23);
+            this.buttonClearCurrentFilter.Size = new System.Drawing.Size(25, 25);
             this.buttonClearCurrentFilter.TabIndex = 25;
             this.buttonClearCurrentFilter.Text = "✕";
             this.buttonClearCurrentFilter.UseVisualStyleBackColor = true;
             this.buttonClearCurrentFilter.Click += new System.EventHandler(this.ButtonClearCurrentFilter_Click);
             // 
             // listBoxCurrent
-            // 
+            //
             this.listBoxCurrent.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
             this.listBoxCurrent.FormattingEnabled = true;
             this.listBoxCurrent.ItemHeight = 24;
             this.listBoxCurrent.Location = new System.Drawing.Point(440, 100);
             this.listBoxCurrent.Name = "listBoxCurrent";
-            this.listBoxCurrent.Size = new System.Drawing.Size(350, 355);
+            this.listBoxCurrent.Size = new System.Drawing.Size(350, 395);
             this.listBoxCurrent.TabIndex = 5;
             this.listBoxCurrent.DrawItem += new System.Windows.Forms.DrawItemEventHandler(this.ListBox_DrawItem);
             this.listBoxCurrent.DoubleClick += new System.EventHandler(this.ListBoxCurrent_DoubleClick);
@@ -140,7 +142,7 @@ namespace GitUI.CommandsDialogs
             // buttonAddAll
             // 
             this.buttonAddAll.Image = global::GitUI.Properties.Images.ToolbarArrowAddAll;
-            this.buttonAddAll.Location = new System.Drawing.Point(375, 101);
+            this.buttonAddAll.Location = new System.Drawing.Point(375, 128);
             this.buttonAddAll.Name = "buttonAddAll";
             this.buttonAddAll.Size = new System.Drawing.Size(50, 45);
             this.buttonAddAll.TabIndex = 28;
@@ -150,7 +152,7 @@ namespace GitUI.CommandsDialogs
             // buttonAdd
             // 
             this.buttonAdd.Image = global::GitUI.Properties.Images.ToolbarArrowRight;
-            this.buttonAdd.Location = new System.Drawing.Point(375, 169);
+            this.buttonAdd.Location = new System.Drawing.Point(375, 196);
             this.buttonAdd.Name = "buttonAdd";
             this.buttonAdd.Size = new System.Drawing.Size(50, 45);
             this.buttonAdd.TabIndex = 6;
@@ -160,7 +162,7 @@ namespace GitUI.CommandsDialogs
             // buttonRemove
             // 
             this.buttonRemove.Image = global::GitUI.Properties.Images.ToolbarArrowLeft;
-            this.buttonRemove.Location = new System.Drawing.Point(375, 224);
+            this.buttonRemove.Location = new System.Drawing.Point(375, 251);
             this.buttonRemove.Name = "buttonRemove";
             this.buttonRemove.Size = new System.Drawing.Size(50, 45);
             this.buttonRemove.TabIndex = 7;
@@ -170,7 +172,7 @@ namespace GitUI.CommandsDialogs
             // buttonMoveUp
             // 
             this.buttonMoveUp.Image = global::GitUI.Properties.Images.ToolbarArrowUp;
-            this.buttonMoveUp.Location = new System.Drawing.Point(375, 279);
+            this.buttonMoveUp.Location = new System.Drawing.Point(375, 306);
             this.buttonMoveUp.Name = "buttonMoveUp";
             this.buttonMoveUp.Size = new System.Drawing.Size(50, 45);
             this.buttonMoveUp.TabIndex = 8;
@@ -180,7 +182,7 @@ namespace GitUI.CommandsDialogs
             // buttonMoveDown
             // 
             this.buttonMoveDown.Image = global::GitUI.Properties.Images.ToolbarArrowDown;
-            this.buttonMoveDown.Location = new System.Drawing.Point(375, 334);
+            this.buttonMoveDown.Location = new System.Drawing.Point(375, 361);
             this.buttonMoveDown.Name = "buttonMoveDown";
             this.buttonMoveDown.Size = new System.Drawing.Size(50, 45);
             this.buttonMoveDown.TabIndex = 9;
@@ -190,7 +192,7 @@ namespace GitUI.CommandsDialogs
             // buttonClearCurrent
             // 
             this.buttonClearCurrent.Image = global::GitUI.Properties.Images.ToolbarCross;
-            this.buttonClearCurrent.Location = new System.Drawing.Point(375, 389);
+            this.buttonClearCurrent.Location = new System.Drawing.Point(375, 416);
             this.buttonClearCurrent.Name = "buttonClearCurrent";
             this.buttonClearCurrent.Size = new System.Drawing.Size(50, 45);
             this.buttonClearCurrent.TabIndex = 16;
@@ -241,12 +243,24 @@ namespace GitUI.CommandsDialogs
             // 
             this.comboBoxToolbar.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.comboBoxToolbar.FormattingEnabled = true;
-            this.comboBoxToolbar.Location = new System.Drawing.Point(80, 12);
+            this.comboBoxToolbar.Location = new System.Drawing.Point(105, 12);
             this.comboBoxToolbar.Name = "comboBoxToolbar";
-            this.comboBoxToolbar.Size = new System.Drawing.Size(210, 23);
+            this.comboBoxToolbar.Size = new System.Drawing.Size(185, 23);
             this.comboBoxToolbar.TabIndex = 14;
             this.comboBoxToolbar.SelectedIndexChanged += new System.EventHandler(this.ComboBoxToolbar_SelectedIndexChanged);
             // 
+            // checkBoxToolbarVisible
+            //
+            this.checkBoxToolbarVisible.AutoSize = true;
+            this.checkBoxToolbarVisible.Checked = true;
+            this.checkBoxToolbarVisible.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.checkBoxToolbarVisible.Location = new System.Drawing.Point(80, 17);
+            this.checkBoxToolbarVisible.Name = "checkBoxToolbarVisible";
+            this.checkBoxToolbarVisible.Size = new System.Drawing.Size(15, 14);
+            this.checkBoxToolbarVisible.TabIndex = 29;
+            this.checkBoxToolbarVisible.UseVisualStyleBackColor = true;
+            this.checkBoxToolbarVisible.CheckedChanged += new System.EventHandler(this.CheckBoxToolbarVisible_CheckedChanged);
+            //
             // buttonAddToolbar
             // 
             this.buttonAddToolbar.Image = global::GitUI.Properties.Images.RemoteAdd;
@@ -260,7 +274,7 @@ namespace GitUI.CommandsDialogs
             // buttonRemoveToolbar
             // 
             this.buttonRemoveToolbar.Image = global::GitUI.Properties.Images.RemoteDelete;
-            this.buttonRemoveToolbar.Location = new System.Drawing.Point(332, 11);
+            this.buttonRemoveToolbar.Location = new System.Drawing.Point(333, 11);
             this.buttonRemoveToolbar.Name = "buttonRemoveToolbar";
             this.buttonRemoveToolbar.Size = new System.Drawing.Size(30, 25);
             this.buttonRemoveToolbar.TabIndex = 18;
@@ -280,7 +294,7 @@ namespace GitUI.CommandsDialogs
             // 
             this.comboBoxCategory.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.comboBoxCategory.FormattingEnabled = true;
-            this.comboBoxCategory.Location = new System.Drawing.Point(184, 42);
+            this.comboBoxCategory.Location = new System.Drawing.Point(185, 42);
             this.comboBoxCategory.Name = "comboBoxCategory";
             this.comboBoxCategory.Size = new System.Drawing.Size(177, 21);
             this.comboBoxCategory.TabIndex = 23;
@@ -296,7 +310,7 @@ namespace GitUI.CommandsDialogs
             this.labelPosition.Text = "Set toolbars positions:";
             // 
             // buttonToolbarLayout
-            // 
+            //
             this.buttonToolbarLayout.Location = new System.Drawing.Point(580, 10);
             this.buttonToolbarLayout.Name = "buttonToolbarLayout";
             this.buttonToolbarLayout.Size = new System.Drawing.Size(120, 25);
@@ -304,26 +318,37 @@ namespace GitUI.CommandsDialogs
             this.buttonToolbarLayout.Text = "Toolbars layout";
             this.buttonToolbarLayout.UseVisualStyleBackColor = true;
             this.buttonToolbarLayout.Click += new System.EventHandler(this.ButtonToolbarLayout_Click);
-            // 
+            //
+            // buttonLocateToolbar
+            //
+            this.buttonLocateToolbar.Location = new System.Drawing.Point(708, 10);
+            this.buttonLocateToolbar.Name = "buttonLocateToolbar";
+            this.buttonLocateToolbar.Size = new System.Drawing.Size(85, 25);
+            this.buttonLocateToolbar.TabIndex = 21;
+            this.buttonLocateToolbar.Text = "Locate";
+            this.buttonLocateToolbar.UseVisualStyleBackColor = true;
+            this.buttonLocateToolbar.Click += new System.EventHandler(this.ButtonLocateToolbar_Click);
+            //
             // labelShow
-            // 
+            //
             this.labelShow.AutoSize = true;
-            this.labelShow.Location = new System.Drawing.Point(618, 463);
+            this.labelShow.Location = new System.Drawing.Point(618, 44);
             this.labelShow.Name = "labelShow";
             this.labelShow.Size = new System.Drawing.Size(40, 13);
             this.labelShow.TabIndex = 26;
             this.labelShow.Text = "Show:";
-            // 
+            this.labelShow.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            //
             // comboBoxDisplayMode
-            // 
+            //
             this.comboBoxDisplayMode.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.comboBoxDisplayMode.FormattingEnabled = true;
             this.comboBoxDisplayMode.Items.AddRange(new object[] {
             "Icons",
             "Icons and text"});
-            this.comboBoxDisplayMode.Location = new System.Drawing.Point(663, 460);
+            this.comboBoxDisplayMode.Location = new System.Drawing.Point(663, 41);
             this.comboBoxDisplayMode.Name = "comboBoxDisplayMode";
-            this.comboBoxDisplayMode.Size = new System.Drawing.Size(130, 21);
+            this.comboBoxDisplayMode.Size = new System.Drawing.Size(127, 21);
             this.comboBoxDisplayMode.TabIndex = 27;
             this.comboBoxDisplayMode.SelectedIndexChanged += new System.EventHandler(this.ComboBoxDisplayMode_SelectedIndexChanged);
             // 
@@ -337,10 +362,12 @@ namespace GitUI.CommandsDialogs
             this.ClientSize = new System.Drawing.Size(803, 530);
             this.Controls.Add(this.comboBoxDisplayMode);
             this.Controls.Add(this.labelShow);
+            this.Controls.Add(this.buttonLocateToolbar);
             this.Controls.Add(this.buttonToolbarLayout);
             this.Controls.Add(this.labelPosition);
             this.Controls.Add(this.buttonRemoveToolbar);
             this.Controls.Add(this.buttonAddToolbar);
+            this.Controls.Add(this.checkBoxToolbarVisible);
             this.Controls.Add(this.labelToolbar);
             this.Controls.Add(this.comboBoxToolbar);
             this.Controls.Add(this.buttonDefaults);
@@ -393,12 +420,14 @@ namespace GitUI.CommandsDialogs
         private System.Windows.Forms.Button buttonCancel;
         private System.Windows.Forms.Button buttonDefaults;
         private System.Windows.Forms.ComboBox comboBoxToolbar;
+        private System.Windows.Forms.CheckBox checkBoxToolbarVisible;
         private System.Windows.Forms.Button buttonAddToolbar;
         private System.Windows.Forms.Button buttonRemoveToolbar;
         private System.Windows.Forms.Label labelToolbar;
         private System.Windows.Forms.ComboBox comboBoxCategory;
         private System.Windows.Forms.Label labelPosition;
         private System.Windows.Forms.Button buttonToolbarLayout;
+        private System.Windows.Forms.Button buttonLocateToolbar;
         private System.Windows.Forms.Label labelShow;
         private System.Windows.Forms.ComboBox comboBoxDisplayMode;
     }

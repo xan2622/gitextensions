@@ -258,6 +258,30 @@ partial class FormBrowse
 
             LogToolbar($"[ApplySavedToolbarLayout] Applying layout with {config.Items.Count} items");
 
+            // Restore toolbars visibility from configuration
+            if (config.ToolbarsVisibility != null && config.ToolbarsVisibility.Count > 0)
+            {
+                LogToolbar($"[ApplySavedToolbarLayout] Restoring visibility for {config.ToolbarsVisibility.Count} toolbars");
+
+                foreach (ToolbarMetadata metadata in config.ToolbarsVisibility)
+                {
+                    ToolStrip? toolbar = metadata.Name switch
+                    {
+                        "Standard" => ToolStripMain,
+                        "Filters" => ToolStripFilters,
+                        "Scripts" => ToolStripScripts,
+                        _ => toolPanel.TopToolStripPanel.Controls.Cast<Control>().OfType<ToolStrip>()
+                            .FirstOrDefault(ts => ts.Text == metadata.Name)
+                    };
+
+                    if (toolbar != null)
+                    {
+                        toolbar.Visible = metadata.Visible;
+                        LogToolbar($"[ApplySavedToolbarLayout] Set {metadata.Name} visibility to {metadata.Visible}");
+                    }
+                }
+            }
+
             // Apply layout to built-in toolbars (reorganize existing items)
             ApplyLayoutToToolStrip(ToolStripMain, 0, config, isCustomToolbar: false);
             ApplyLayoutToToolStrip(ToolStripFilters, 1, config, isCustomToolbar: false);

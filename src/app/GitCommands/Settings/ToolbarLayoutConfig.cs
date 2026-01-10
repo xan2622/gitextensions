@@ -60,6 +60,25 @@ public class CustomToolbarMetadata
 }
 
 /// <summary>
+/// Metadata for a built-in or custom toolbar
+/// </summary>
+[DataContract]
+public class ToolbarMetadata
+{
+    /// <summary>
+    /// Name of the toolbar (e.g., "Standard", "Filters", "Scripts", "Custom 01")
+    /// </summary>
+    [DataMember]
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether the toolbar is visible
+    /// </summary>
+    [DataMember]
+    public bool Visible { get; set; } = true;
+}
+
+/// <summary>
 /// Complete configuration for all toolbars layout
 /// </summary>
 [DataContract]
@@ -82,4 +101,10 @@ public class ToolbarLayoutConfig
     /// </summary>
     [DataMember]
     public List<CustomToolbarMetadata> CustomToolbars { get; set; } = new();
+
+    /// <summary>
+    /// List of all toolbars visibility metadata (built-in and custom)
+    /// </summary>
+    [DataMember]
+    public List<ToolbarMetadata> ToolbarsVisibility { get; set; } = new();
 }
