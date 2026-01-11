@@ -1,5 +1,4 @@
-
-using System.Windows.Forms;
+﻿using System.Windows.Forms;
 
 namespace GitUI.CommandsDialogs;
 
@@ -512,7 +511,7 @@ partial class FormRemotes
         gbMgtPanel.Dock = DockStyle.Top;
         gbMgtPanel.Location = new Point(8, 4);
         gbMgtPanel.Name = "gbMgtPanel";
-        gbMgtPanel.Size = new Size(570, 331);
+        gbMgtPanel.Size = new Size(440, 331);
         gbMgtPanel.TabIndex = 0;
         gbMgtPanel.TabStop = false;
         gbMgtPanel.Text = "Create New Remote";

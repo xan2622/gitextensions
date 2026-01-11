@@ -1,4 +1,4 @@
-using GitCommands;
+﻿using GitCommands;
 using GitCommands.Config;
 using GitCommands.Remotes;
 using GitCommands.UserRepositoryHistory;
@@ -121,7 +121,7 @@ Inactive remote is completely invisible to git.");
         toolTip1.SetToolTip(New, _btnNewTooltip.Text);
         toolTip1.SetToolTip(Delete, _btnDeleteTooltip.Text);
 
-        // Keep the "New" button enabled at all times
+        // Allow users to add new remotes even when no remote is selected in the list
         New.Enabled = true;
 
         _lvgEnabled = new ListViewGroup(_lvgEnabledHeader.Text, HorizontalAlignment.Left);
@@ -134,7 +134,22 @@ Inactive remote is completely invisible to git.");
         RemoteCombo.DataPropertyName = nameof(IGitRef.TrackingRemote);
         MergeWith.DataPropertyName = nameof(IGitRef.MergeWith);
 
-        Remotes.Resize += (s, e) => AutoResizeRemotesColumn();
+        // Debounce resize events to avoid excessive column recalculations during continuous resize operations
+        const int resizeDebounceIntervalMs = 150;
+        System.Windows.Forms.Timer resizeDebounceTimer = new() { Interval = resizeDebounceIntervalMs };
+        resizeDebounceTimer.Tick += (sender, args) =>
+        {
+            if (sender is System.Windows.Forms.Timer timer)
+            {
+                timer.Stop();
+                AutoResizeRemotesColumn();
+            }
+        };
+        Remotes.Resize += (s, e) =>
+        {
+            resizeDebounceTimer.Stop();
+            resizeDebounceTimer.Start();
+        };
     }
 
     private void AutoResizeRemotesColumn()
@@ -144,8 +159,11 @@ Inactive remote is completely invisible to git.");
             return;
         }
 
+        // First, auto-size the column to fit its content
         Remotes.Columns[0].AutoResize(ColumnHeaderAutoResizeStyle.ColumnContent);
 
+        // If the content is narrower than the visible area, expand the column to fill the available space.
+        // If the content is wider, the column keeps its larger width, allowing a horizontal scrollbar to appear.
         int availableWidth = Remotes.ClientSize.Width;
         if (Remotes.Columns[0].Width < availableWidth)
         {
