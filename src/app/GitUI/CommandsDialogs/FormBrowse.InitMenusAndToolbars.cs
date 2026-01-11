@@ -206,11 +206,11 @@ partial class FormBrowse
             // if the 1st one becomes longer than the 2nd toolbar's Location.X
             // the layout engine will be place the 2nd toolbar first
             //
-            // In ToolStripPanel, controls are added from RIGHT to LEFT.
-            // So to get: Standard | Filters | Scripts | Custom (left to right)
-            // We need to add in reverse: Custom, Scripts, Filters, Standard
+            // This method now respects saved Row and OrderInRow from configuration
 
-            // 1. Collect custom toolbars first (they should appear on the right)
+            ToolbarLayoutConfig? config = AppSettings.ToolbarLayout;
+
+            // 1. Collect all toolbars (built-in and custom)
             List<ToolStrip> customToolStrips = new();
             foreach (Control control in toolPanel.TopToolStripPanel.Controls)
             {
@@ -220,47 +220,88 @@ partial class FormBrowse
                 }
             }
 
-            // 2. Build the list in the order we need to ADD them
-            // (reverse of visual order because ToolStripPanel adds from right to left)
-            List<ToolStrip> allToolStrips = new();
+            // Build mapping of toolbar name to ToolStrip
+            Dictionary<string, ToolStrip> toolStripsByName = new()
+            {
+                { "Standard", ToolStripMain },
+                { "Filters", ToolStripFilters },
+                { "Scripts", ToolStripScripts }
+            };
 
-            // Custom toolbars first (will appear rightmost)
-            allToolStrips.AddRange(customToolStrips);
+            foreach (ToolStrip customTs in customToolStrips)
+            {
+                if (!string.IsNullOrEmpty(customTs.Text))
+                {
+                    toolStripsByName[customTs.Text] = customTs;
+                }
+            }
 
-            // Then built-in toolbars in reverse visual order
-            allToolStrips.Add(ToolStripScripts);  // Will appear before custom
-            allToolStrips.Add(ToolStripFilters);  // Will appear before Scripts
-            allToolStrips.Add(ToolStripMain);     // Will appear leftmost (Standard)
+            // 2. Build layout info from config or use defaults
+            List<(ToolStrip ToolStrip, int Row, int OrderInRow)> layoutInfo = new();
+
+            foreach (var kvp in toolStripsByName)
+            {
+                string name = kvp.Key;
+                ToolStrip toolStrip = kvp.Value;
+
+                int row = 0;
+                int orderInRow = GetDefaultOrderInRow(name);
+
+                // Try to get from ToolbarsVisibility
+                ToolbarMetadata? metadata = config?.ToolbarsVisibility?.FirstOrDefault(t => t.Name == name);
+                if (metadata != null)
+                {
+                    row = metadata.Row;
+                    orderInRow = metadata.OrderInRow;
+                }
+                else
+                {
+                    // Try CustomToolbars for custom toolbars
+                    CustomToolbarMetadata? customMeta = config?.CustomToolbars?.FirstOrDefault(c => c.Name == name);
+                    if (customMeta != null)
+                    {
+                        row = customMeta.Row;
+                        orderInRow = customMeta.OrderInRow;
+                    }
+                }
+
+                layoutInfo.Add((toolStrip, row, orderInRow));
+            }
 
             // 3. Clear panel
             toolPanel.TopToolStripPanel.Controls.Clear();
 
-            // 4. Add only visible toolbars to prevent empty rows
-            foreach (ToolStrip toolStrip in allToolStrips)
+            // 4. Add toolbars row by row, respecting order within each row
+            // ToolStripPanel.Join() adds to a specific row
+            // Within each row, toolbars are added from right to left, so we process in reverse order
+            var groupedByRow = layoutInfo
+                .Where(li => li.ToolStrip.Visible)
+                .GroupBy(li => li.Row)
+                .OrderByDescending(g => g.Key); // Process higher rows first
+
+            foreach (var rowGroup in groupedByRow)
             {
-                if (toolStrip.Visible)
+                int row = rowGroup.Key;
+
+                // Sort by OrderInRow descending (rightmost first for ToolStripPanel)
+                foreach (var item in rowGroup.OrderByDescending(li => li.OrderInRow))
                 {
-                    toolPanel.TopToolStripPanel.Controls.Add(toolStrip);
+                    toolPanel.TopToolStripPanel.Join(item.ToolStrip, row);
                 }
             }
 
-#if DEBUG
-            // 5. Get only visible toolbars for assertion checks
-            var visibleToolStrips = allToolStrips.Where(ts => ts.Visible).ToArray();
+            LogToolbar($"[WorkaroundToolbarLocationBug] Applied layout with {layoutInfo.Count} toolbars");
 
-            // 6. Assert toolbars are on the same row
-            foreach (ToolStrip toolStrip in visibleToolStrips)
+            int GetDefaultOrderInRow(string toolbarName)
             {
-                DebugHelpers.Assert(toolStrip.Top == 0, $"{toolStrip.Name} must be placed on the 1st row");
+                return toolbarName switch
+                {
+                    "Standard" => 0,
+                    "Filters" => 1,
+                    "Scripts" => 2,
+                    _ => 99 // Custom toolbars at the end
+                };
             }
-
-            // 7. Assert the correct order of toolbars
-            for (int i = visibleToolStrips.Length - 1; i > 0; i--)
-            {
-                DebugHelpers.Assert(visibleToolStrips[i].Left < visibleToolStrips[i - 1].Left,
-                    $"{visibleToolStrips[i - 1].Name} must be placed before {visibleToolStrips[i].Name}");
-            }
-#endif
         }
 
         void ApplySavedToolbarLayout()
@@ -608,9 +649,11 @@ partial class FormBrowse
     {
         // Clear and reorganize toolbars to prevent empty rows/spaces
         // This is called when toolbar visibility changes
+        // Respects saved Row/OrderInRow from configuration
 
-        // 1. Collect all toolbars (built-in and custom) - INCLUDING invisible ones
-        // We need to collect them BEFORE clearing the panel
+        ToolbarLayoutConfig? config = AppSettings.ToolbarLayout;
+
+        // 1. Collect all toolbars (built-in and custom)
         List<ToolStrip> customToolStrips = new();
         foreach (Control control in toolPanel.TopToolStripPanel.Controls)
         {
@@ -623,31 +666,86 @@ partial class FormBrowse
             }
         }
 
-        // 2. Build the list in the order we need to ADD them
-        // (reverse of visual order because ToolStripPanel adds from right to left)
-        List<ToolStrip> allToolStrips = new();
+        // Build mapping of toolbar name to ToolStrip
+        Dictionary<string, ToolStrip> toolStripsByName = new()
+        {
+            { "Standard", ToolStripMain },
+            { "Filters", ToolStripFilters },
+            { "Scripts", ToolStripScripts }
+        };
 
-        // Custom toolbars first (will appear rightmost)
-        allToolStrips.AddRange(customToolStrips);
+        foreach (ToolStrip customTs in customToolStrips)
+        {
+            if (!string.IsNullOrEmpty(customTs.Text))
+            {
+                toolStripsByName[customTs.Text] = customTs;
+            }
+        }
 
-        // Then built-in toolbars in reverse visual order
-        allToolStrips.Add(ToolStripScripts);  // Will appear before custom
-        allToolStrips.Add(ToolStripFilters);  // Will appear before Scripts
-        allToolStrips.Add(ToolStripMain);     // Will appear leftmost (Standard)
+        // 2. Build layout info from config or use defaults
+        List<(ToolStrip ToolStrip, int Row, int OrderInRow)> layoutInfo = new();
 
-        // 3. Clear panel (this removes all toolbars, visible or not)
+        foreach (var kvp in toolStripsByName)
+        {
+            string name = kvp.Key;
+            ToolStrip toolStrip = kvp.Value;
+
+            if (toolStrip.IsDisposed)
+            {
+                continue;
+            }
+
+            int row = 0;
+            int orderInRow = GetDefaultOrderInRow(name);
+
+            // Try to get from ToolbarsVisibility
+            ToolbarMetadata? metadata = config?.ToolbarsVisibility?.FirstOrDefault(t => t.Name == name);
+            if (metadata != null)
+            {
+                row = metadata.Row;
+                orderInRow = metadata.OrderInRow;
+            }
+            else
+            {
+                // Try CustomToolbars for custom toolbars
+                CustomToolbarMetadata? customMeta = config?.CustomToolbars?.FirstOrDefault(c => c.Name == name);
+                if (customMeta != null)
+                {
+                    row = customMeta.Row;
+                    orderInRow = customMeta.OrderInRow;
+                }
+            }
+
+            layoutInfo.Add((toolStrip, row, orderInRow));
+        }
+
+        // 3. Clear panel
         toolPanel.TopToolStripPanel.Controls.Clear();
 
-        // 4. Add ALL toolbars back (including invisible ones)
-        // The ToolStripPanel will handle the visibility automatically
-        foreach (ToolStrip toolStrip in allToolStrips)
+        // 4. Add toolbars row by row, respecting order within each row
+        var groupedByRow = layoutInfo
+            .Where(li => li.ToolStrip.Visible)
+            .GroupBy(li => li.Row)
+            .OrderByDescending(g => g.Key);
+
+        foreach (var rowGroup in groupedByRow)
         {
-            if (!toolStrip.IsDisposed)
+            int row = rowGroup.Key;
+            foreach (var item in rowGroup.OrderByDescending(li => li.OrderInRow))
             {
-                // The toolbar's Visible property is preserved
-                // ToolStripPanel will handle layout of visible/invisible controls
-                toolPanel.TopToolStripPanel.Controls.Add(toolStrip);
+                toolPanel.TopToolStripPanel.Join(item.ToolStrip, row);
             }
+        }
+
+        int GetDefaultOrderInRow(string toolbarName)
+        {
+            return toolbarName switch
+            {
+                "Standard" => 0,
+                "Filters" => 1,
+                "Scripts" => 2,
+                _ => 99
+            };
         }
     }
 

@@ -57,6 +57,18 @@ public class CustomToolbarMetadata
     /// </summary>
     [DataMember]
     public bool Visible { get; set; } = true;
+
+    /// <summary>
+    /// Row where the toolbar is positioned (0-based)
+    /// </summary>
+    [DataMember]
+    public int Row { get; set; } = 0;
+
+    /// <summary>
+    /// Order/position within the row (0 = leftmost)
+    /// </summary>
+    [DataMember]
+    public int OrderInRow { get; set; } = 0;
 }
 
 /// <summary>
@@ -76,6 +88,18 @@ public class ToolbarMetadata
     /// </summary>
     [DataMember]
     public bool Visible { get; set; } = true;
+
+    /// <summary>
+    /// Row where the toolbar is positioned (0-based)
+    /// </summary>
+    [DataMember]
+    public int Row { get; set; } = 0;
+
+    /// <summary>
+    /// Order/position within the row (0 = leftmost)
+    /// </summary>
+    [DataMember]
+    public int OrderInRow { get; set; } = 0;
 }
 
 /// <summary>

@@ -624,11 +624,15 @@ namespace GitUI.CommandsDialogs
 
         private void ButtonToolbarLayout_Click(object? sender, EventArgs e)
         {
-            MessageBox.Show(
-                "This feature will allow you to customize the position and layout of toolbars.\n\nComing soon!",
-                "Toolbar Layout",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information);
+            // Save current toolbar layout before opening the layout form
+            SaveCurrentToolbarLayout();
+
+            using FormToolbarLayout layoutForm = new(_formBrowse, _dynamicToolbars);
+            if (layoutForm.ShowDialog(this) == DialogResult.OK)
+            {
+                // Layout was changed, refresh the visibility in case toolbars moved
+                LoadToolbarVisibility();
+            }
         }
 
         private void ComboBoxDisplayMode_SelectedIndexChanged(object? sender, EventArgs e)
@@ -1055,31 +1059,54 @@ namespace GitUI.CommandsDialogs
                 }
             }
 
-            // Save custom toolbar metadata
+            // Get existing layout positions to preserve Row/OrderInRow values
+            ToolbarLayoutConfig? existingConfig = AppSettings.ToolbarLayout;
+
+            // Save custom toolbar metadata (preserving Row/OrderInRow)
             config.CustomToolbars.Clear();
             foreach (string toolbarName in allToolbarNames.Where(name => name.StartsWith("Custom ")))
             {
                 ToolStrip? toolStrip = GetToolStripByName(toolbarName);
                 int toolbarIndex = GetToolbarIndex(toolbarName);
 
+                // Get existing Row/OrderInRow or use defaults
+                CustomToolbarMetadata? existingMeta = existingConfig?.CustomToolbars?
+                    .FirstOrDefault(c => c.Name == toolbarName);
+
                 config.CustomToolbars.Add(new CustomToolbarMetadata
                 {
                     Name = toolbarName,
                     Index = toolbarIndex,
-                    Visible = toolStrip?.Visible ?? true
+                    Visible = toolStrip?.Visible ?? true,
+                    Row = existingMeta?.Row ?? 0,
+                    OrderInRow = existingMeta?.OrderInRow ?? toolbarIndex
                 });
             }
 
-            // Save all toolbars visibility metadata (built-in and custom)
+            // Save all toolbars visibility metadata (built-in and custom, preserving Row/OrderInRow)
             config.ToolbarsVisibility.Clear();
             foreach (string toolbarName in allToolbarNames)
             {
                 ToolStrip? toolStrip = GetToolStripByName(toolbarName);
 
+                // Get existing Row/OrderInRow or use defaults
+                ToolbarMetadata? existingMeta = existingConfig?.ToolbarsVisibility?
+                    .FirstOrDefault(t => t.Name == toolbarName);
+
+                int defaultOrderInRow = toolbarName switch
+                {
+                    "Standard" => 0,
+                    "Filters" => 1,
+                    "Scripts" => 2,
+                    _ => GetToolbarIndex(toolbarName)
+                };
+
                 config.ToolbarsVisibility.Add(new ToolbarMetadata
                 {
                     Name = toolbarName,
-                    Visible = toolStrip?.Visible ?? true
+                    Visible = toolStrip?.Visible ?? true,
+                    Row = existingMeta?.Row ?? 0,
+                    OrderInRow = existingMeta?.OrderInRow ?? defaultOrderInRow
                 });
             }
 
