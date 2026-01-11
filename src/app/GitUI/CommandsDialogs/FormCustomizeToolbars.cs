@@ -999,22 +999,23 @@ namespace GitUI.CommandsDialogs
                             {
                                 itemToAdd.Owner.Items.Remove(itemToAdd);
                             }
-
-                            // Ensure item has an image (use default if none)
-                            if (itemToAdd.Image == null)
-                            {
-                                itemToAdd.Image = global::GitUI.Properties.Images.ApplicationBlue;
-                            }
                         }
                         else
                         {
                             itemToAdd = wrapper.Item;
+                        }
 
-                            // Ensure item has an image (use default if none)
-                            if (itemToAdd != null && itemToAdd.Image == null)
-                            {
-                                itemToAdd.Image = global::GitUI.Properties.Images.ApplicationBlue;
-                            }
+                        // For custom toolbars, convert ToolStripMenuItem to ToolStripButton
+                        // ToolStripMenuItem items don't work correctly in toolbars (they stay "pressed")
+                        if (toolbarName.StartsWith("Custom ") && itemToAdd is ToolStripMenuItem menuItem)
+                        {
+                            itemToAdd = ConvertMenuItemToButton(menuItem);
+                        }
+
+                        // Ensure item has an image (use default if none)
+                        if (itemToAdd != null && itemToAdd.Image == null)
+                        {
+                            itemToAdd.Image = global::GitUI.Properties.Images.ApplicationBlue;
                         }
                     }
 
@@ -1098,6 +1099,35 @@ namespace GitUI.CommandsDialogs
                 "Scripts" => _formBrowse.ToolStripScripts,
                 _ => name.StartsWith("Custom ") && _dynamicToolbars.TryGetValue(name, out ToolStrip? toolStrip) ? toolStrip : null
             };
+        }
+
+        /// <summary>
+        /// Converts a ToolStripMenuItem to a ToolStripButton for use in toolbars.
+        /// ToolStripMenuItem items don't work correctly in toolbars - they stay in "pressed" state
+        /// and don't trigger their click events properly.
+        /// </summary>
+        private static ToolStripButton ConvertMenuItemToButton(ToolStripMenuItem menuItem)
+        {
+            ToolStripButton button = new()
+            {
+                Name = $"btn_{menuItem.Name}",
+                Text = menuItem.Text,
+                Image = menuItem.Image ?? global::GitUI.Properties.Images.ApplicationBlue,
+                ToolTipText = string.IsNullOrEmpty(menuItem.ToolTipText) ? menuItem.Text.Replace("&", "") : menuItem.ToolTipText,
+                DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
+                ImageTransparentColor = menuItem.ImageTransparentColor,
+                Tag = menuItem,
+                Enabled = menuItem.Enabled,
+                Visible = menuItem.Visible
+            };
+
+            // When button is clicked, trigger the original menu item's click event
+            button.Click += (s, e) =>
+            {
+                menuItem.PerformClick();
+            };
+
+            return button;
         }
 
         private int GetToolbarIndex(string name)
