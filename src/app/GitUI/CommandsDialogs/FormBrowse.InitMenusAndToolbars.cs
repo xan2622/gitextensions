@@ -210,6 +210,19 @@ partial class FormBrowse
 
             ToolbarLayoutConfig? config = AppSettings.ToolbarLayout;
 
+            LogToolbar($"[WorkaroundToolbarLocationBug] START - Config is null: {config is null}");
+            if (config != null)
+            {
+                LogToolbar($"[WorkaroundToolbarLocationBug] ToolbarsVisibility count: {config.ToolbarsVisibility?.Count ?? 0}");
+                if (config.ToolbarsVisibility != null)
+                {
+                    foreach (var meta in config.ToolbarsVisibility)
+                    {
+                        LogToolbar($"[WorkaroundToolbarLocationBug] Toolbar '{meta.Name}': Row={meta.Row}, OrderInRow={meta.OrderInRow}, Visible={meta.Visible}");
+                    }
+                }
+            }
+
             // 1. Collect all toolbars (built-in and custom)
             List<ToolStrip> customToolStrips = new();
             foreach (Control control in toolPanel.TopToolStripPanel.Controls)
@@ -253,6 +266,7 @@ partial class FormBrowse
                 {
                     row = metadata.Row;
                     orderInRow = metadata.OrderInRow;
+                    LogToolbar($"[WorkaroundToolbarLocationBug] Found '{name}' in ToolbarsVisibility: Row={row}, OrderInRow={orderInRow}");
                 }
                 else
                 {
@@ -262,6 +276,11 @@ partial class FormBrowse
                     {
                         row = customMeta.Row;
                         orderInRow = customMeta.OrderInRow;
+                        LogToolbar($"[WorkaroundToolbarLocationBug] Found '{name}' in CustomToolbars: Row={row}, OrderInRow={orderInRow}");
+                    }
+                    else
+                    {
+                        LogToolbar($"[WorkaroundToolbarLocationBug] '{name}' NOT FOUND in config, using defaults: Row={row}, OrderInRow={orderInRow}");
                     }
                 }
 
@@ -277,20 +296,31 @@ partial class FormBrowse
             var groupedByRow = layoutInfo
                 .Where(li => li.ToolStrip.Visible)
                 .GroupBy(li => li.Row)
-                .OrderByDescending(g => g.Key); // Process higher rows first
+                .OrderBy(g => g.Key); // Process rows in ascending order (0, 1, 2...)
 
             foreach (var rowGroup in groupedByRow)
             {
                 int row = rowGroup.Key;
+                LogToolbar($"[WorkaroundToolbarLocationBug] Processing Row {row} with {rowGroup.Count()} toolbars");
 
-                // Sort by OrderInRow descending (rightmost first for ToolStripPanel)
-                foreach (var item in rowGroup.OrderByDescending(li => li.OrderInRow))
+                // CRITICAL FIX: Join() actually adds from LEFT to RIGHT, not right to left!
+                // So we need to process in ASCENDING order (0, 1, 2...) to get the correct visual order
+                foreach (var item in rowGroup.OrderBy(li => li.OrderInRow))
                 {
+                    LogToolbar($"[WorkaroundToolbarLocationBug] Joining '{item.ToolStrip.Name}' to row {row} (OrderInRow={item.OrderInRow})");
                     toolPanel.TopToolStripPanel.Join(item.ToolStrip, row);
                 }
+
+                // Log the final order after joining
+                var controlsInRow = toolPanel.TopToolStripPanel.Controls
+                    .Cast<Control>()
+                    .OfType<ToolStrip>()
+                    .ToList();
+
+                LogToolbar($"[WorkaroundToolbarLocationBug] Row {row} final order ({controlsInRow.Count} toolbars): {string.Join(" | ", controlsInRow.Select(ts => ts.Name))}");
             }
 
-            LogToolbar($"[WorkaroundToolbarLocationBug] Applied layout with {layoutInfo.Count} toolbars");
+            LogToolbar($"[WorkaroundToolbarLocationBug] COMPLETED - Applied layout with {layoutInfo.Count} toolbars");
 
             int GetDefaultOrderInRow(string toolbarName)
             {
@@ -524,6 +554,14 @@ partial class FormBrowse
                 menuItem.PerformClick();
             };
 
+            // Store the converted button in the original items dictionary
+            // This allows it to be found on subsequent loads
+            if (!string.IsNullOrWhiteSpace(button.Name) && !_originalToolbarItems.ContainsKey(button.Name))
+            {
+                _originalToolbarItems[button.Name] = button;
+                LogToolbar($"[ConvertMenuItemToButton] Stored converted button: {button.Name}");
+            }
+
             return button;
         }
 
@@ -723,18 +761,31 @@ partial class FormBrowse
         toolPanel.TopToolStripPanel.Controls.Clear();
 
         // 4. Add toolbars row by row, respecting order within each row
+        // ToolStripPanel.Join() adds to a specific row
+        // Within each row, toolbars are added from right to left, so we process in reverse order
         var groupedByRow = layoutInfo
             .Where(li => li.ToolStrip.Visible)
             .GroupBy(li => li.Row)
-            .OrderByDescending(g => g.Key);
+            .OrderBy(g => g.Key); // Process rows in ascending order (0, 1, 2...)
 
         foreach (var rowGroup in groupedByRow)
         {
             int row = rowGroup.Key;
-            foreach (var item in rowGroup.OrderByDescending(li => li.OrderInRow))
+
+            // CRITICAL FIX: Join() actually adds from LEFT to RIGHT, not right to left!
+            // So we need to process in ASCENDING order (0, 1, 2...) to get the correct visual order
+            foreach (var item in rowGroup.OrderBy(li => li.OrderInRow))
             {
                 toolPanel.TopToolStripPanel.Join(item.ToolStrip, row);
             }
+
+            // Log the final order after joining
+            var controlsInRow = toolPanel.TopToolStripPanel.Controls
+                .Cast<Control>()
+                .OfType<ToolStrip>()
+                .ToList();
+
+            LogToolbar($"[ReorganizeToolbars] Row {row} final order ({controlsInRow.Count} toolbars): {string.Join(" | ", controlsInRow.Select(ts => ts.Name))}");
         }
 
         int GetDefaultOrderInRow(string toolbarName)

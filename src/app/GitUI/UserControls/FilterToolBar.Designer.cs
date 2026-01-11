@@ -1,4 +1,4 @@
-﻿using System.Windows.Forms;
+using System.Windows.Forms;
 
 namespace GitUI.UserControls;
 
@@ -281,6 +281,7 @@ public partial class FilterToolBar
         tstxtRevisionFilter,
         tsddbtnRevisionFilter,
         tsmiShowOnlyFirstParent});
+        GripStyle = ToolStripGripStyle.Visible;
         LayoutStyle = ToolStripLayoutStyle.HorizontalStackWithOverflow;
         Location = new Point(584, 0);
         Name = "ToolStripFilters";

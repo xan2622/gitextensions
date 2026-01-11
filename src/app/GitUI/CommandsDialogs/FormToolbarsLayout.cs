@@ -8,10 +8,10 @@ using GitCommands.Settings;
 namespace GitUI.CommandsDialogs
 {
     /// <summary>
-    /// Form for configuring toolbar layout with a visual 2D grid.
+    /// Form for configuring toolbars layout with a visual 2D grid.
     /// Allows users to drag and drop toolbars to reposition them across rows.
     /// </summary>
-    public partial class FormToolbarLayout : Form
+    public partial class FormToolbarsLayout : Form
     {
         private readonly FormBrowse _formBrowse;
         private readonly Dictionary<string, ToolStrip> _dynamicToolbars;
@@ -33,7 +33,7 @@ namespace GitUI.CommandsDialogs
         // Selection state
         private ToolbarItemPanel? _selectedItem;
 
-        public FormToolbarLayout(FormBrowse formBrowse, Dictionary<string, ToolStrip> dynamicToolbars)
+        public FormToolbarsLayout(FormBrowse formBrowse, Dictionary<string, ToolStrip> dynamicToolbars)
         {
             _formBrowse = formBrowse;
             _dynamicToolbars = dynamicToolbars;
@@ -123,7 +123,7 @@ namespace GitUI.CommandsDialogs
                 LayoutItem = item;
                 Width = ToolbarItemWidth;
                 Height = ToolbarItemHeight;
-                BackColor = item.IsBuiltIn ? Color.FromArgb(220, 235, 252) : Color.FromArgb(235, 252, 220);
+                BackColor = Color.FromArgb(220, 235, 252); // Same color for all toolbars (built-in and custom)
                 BorderStyle = BorderStyle.FixedSingle;
                 Cursor = Cursors.SizeAll;
                 Margin = new Padding(ToolbarItemMargin);
@@ -222,6 +222,9 @@ namespace GitUI.CommandsDialogs
             // Get current layout from config
             ToolbarLayoutConfig? config = GitCommands.AppSettings.ToolbarLayout;
 
+            System.Diagnostics.Debug.WriteLine($"[FormToolbarsLayout.LoadCurrentLayout] Config is null: {config is null}");
+            System.Diagnostics.Debug.WriteLine($"[FormToolbarsLayout.LoadCurrentLayout] ToolbarsVisibility count: {config?.ToolbarsVisibility?.Count ?? 0}");
+
             // Built-in toolbars with their current positions
             string[] builtInToolbars = { "Standard", "Filters", "Scripts" };
 
@@ -230,14 +233,20 @@ namespace GitUI.CommandsDialogs
                 ToolbarMetadata? metadata = config?.ToolbarsVisibility?
                     .FirstOrDefault(t => t.Name == name);
 
+                int row = metadata?.Row ?? 0;
+                int orderInRow = metadata?.OrderInRow ?? GetDefaultOrder(name);
+                bool visible = metadata?.Visible ?? true;
+
+                System.Diagnostics.Debug.WriteLine($"[FormToolbarsLayout.LoadCurrentLayout] Toolbar '{name}': Row={row}, OrderInRow={orderInRow}, Visible={visible}");
+
                 _layoutItems.Add(new ToolbarLayoutItem
                 {
                     Name = name,
                     DisplayName = name,
-                    Row = metadata?.Row ?? 0,
-                    OrderInRow = metadata?.OrderInRow ?? GetDefaultOrder(name),
+                    Row = row,
+                    OrderInRow = orderInRow,
                     IsBuiltIn = true,
-                    IsVisible = metadata?.Visible ?? true
+                    IsVisible = visible
                 });
             }
 
@@ -246,6 +255,8 @@ namespace GitUI.CommandsDialogs
             {
                 foreach (CustomToolbarMetadata customMeta in config.CustomToolbars)
                 {
+                    System.Diagnostics.Debug.WriteLine($"[FormToolbarsLayout.LoadCurrentLayout] Custom Toolbar '{customMeta.Name}': Row={customMeta.Row}, OrderInRow={customMeta.OrderInRow}, Visible={customMeta.Visible}");
+
                     _layoutItems.Add(new ToolbarLayoutItem
                     {
                         Name = customMeta.Name,
@@ -908,62 +919,17 @@ namespace GitUI.CommandsDialogs
             // Save config
             GitCommands.AppSettings.ToolbarLayout = config;
 
+            // Persist to disk immediately
+            GitCommands.AppSettings.SettingsContainer.Save();
+
             // Apply to actual toolbars in FormBrowse
             ApplyToFormBrowse();
         }
 
         private void ApplyToFormBrowse()
         {
-            // Get the ToolStripPanel from FormBrowse
-            Control? toolPanelContainer = _formBrowse.Controls.Cast<Control>()
-                .FirstOrDefault(c => c is ToolStripContainer);
-
-            if (toolPanelContainer is not ToolStripContainer toolPanel)
-            {
-                return;
-            }
-
-            ToolStripPanel topPanel = toolPanel.TopToolStripPanel;
-
-            // Collect all toolbars
-            List<ToolStrip> allToolStrips = new();
-
-            // Built-in toolbars
-            allToolStrips.Add(_formBrowse.ToolStripMain);
-            allToolStrips.Add(_formBrowse.ToolStripFilters);
-            allToolStrips.Add(_formBrowse.ToolStripScripts);
-
-            // Custom toolbars
-            foreach (var kvp in _dynamicToolbars)
-            {
-                if (!allToolStrips.Contains(kvp.Value))
-                {
-                    allToolStrips.Add(kvp.Value);
-                }
-            }
-
-            // Clear panel
-            topPanel.Controls.Clear();
-
-            // Group items by row
-            var itemsByRow = _layoutItems
-                .OrderBy(i => i.Row)
-                .ThenBy(i => i.OrderInRow)
-                .GroupBy(i => i.Row);
-
-            // Add toolbars row by row
-            foreach (var rowGroup in itemsByRow.OrderByDescending(g => g.Key))
-            {
-                foreach (ToolbarLayoutItem item in rowGroup.OrderByDescending(i => i.OrderInRow))
-                {
-                    ToolStrip? toolStrip = GetToolStripByName(item.Name, allToolStrips);
-                    if (toolStrip != null && toolStrip.Visible)
-                    {
-                        // Join to the appropriate row
-                        topPanel.Join(toolStrip, item.Row);
-                    }
-                }
-            }
+            // Call the public method in FormBrowse to reorganize toolbars
+            _formBrowse.ReorganizeToolbars();
         }
 
         private ToolStrip? GetToolStripByName(string name, List<ToolStrip> allToolStrips)

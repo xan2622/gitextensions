@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Reflection;
@@ -2279,24 +2279,34 @@ public static partial class AppSettings
     }
 
     /// <summary>
-    /// Gets or sets the toolbar layout configuration
+    /// Gets or sets the toolbar layout configuration (stored as XML)
     /// </summary>
     public static ToolbarLayoutConfig ToolbarLayout
     {
         get
         {
-            string json = SettingsContainer.GetString(ToolbarSettingsPath.PathFor("Layout"), string.Empty);
-            if (string.IsNullOrWhiteSpace(json))
+            string xml = SettingsContainer.GetString(ToolbarSettingsPath.PathFor("Layout"), string.Empty);
+            System.Diagnostics.Debug.WriteLine($"[AppSettings.ToolbarLayout.get] XML length: {xml?.Length ?? 0}");
+
+            if (string.IsNullOrWhiteSpace(xml))
             {
+                System.Diagnostics.Debug.WriteLine("[AppSettings.ToolbarLayout.get] XML is empty, returning new config");
                 return new ToolbarLayoutConfig();
             }
 
-            return Utils.JsonSerializer.Deserialize<ToolbarLayoutConfig>(json) ?? new ToolbarLayoutConfig();
+            // XmlToolbarSerializer handles backward compatibility with JSON format
+            var config = Utils.XmlToolbarSerializer.Deserialize<ToolbarLayoutConfig>(xml);
+            System.Diagnostics.Debug.WriteLine($"[AppSettings.ToolbarLayout.get] Deserialized config: {(config != null ? $"ToolbarsVisibility={config.ToolbarsVisibility?.Count ?? 0}" : "NULL")}");
+
+            return config ?? new ToolbarLayoutConfig();
         }
         set
         {
-            string json = Utils.JsonSerializer.Serialize(value);
-            SettingsContainer.SetString(ToolbarSettingsPath.PathFor("Layout"), json);
+            string xml = Utils.XmlToolbarSerializer.Serialize(value);
+            System.Diagnostics.Debug.WriteLine($"[AppSettings.ToolbarLayout.set] Serialized XML length: {xml?.Length ?? 0}");
+            System.Diagnostics.Debug.WriteLine($"[AppSettings.ToolbarLayout.set] ToolbarsVisibility count: {value?.ToolbarsVisibility?.Count ?? 0}");
+
+            SettingsContainer.SetString(ToolbarSettingsPath.PathFor("Layout"), xml);
         }
     }
 

@@ -1,4 +1,4 @@
-﻿﻿using System.ComponentModel;
+using System.ComponentModel;
 using GitExtensions.Extensibility.Git;
 using GitExtUtils.GitUI.Theming;
 using GitUI.CommandsDialogs.Menus;
@@ -198,7 +198,7 @@ partial class FormBrowse
         ToolStripMain.ClickThrough = true;
         ToolStripMain.Dock = DockStyle.None;
         ToolStripMain.DrawBorder = false;
-        ToolStripMain.GripEnabled = false;
+        ToolStripMain.GripStyle = ToolStripGripStyle.Visible;
         ToolStripMain.GripMargin = new Padding(0);
         ToolStripMain.ImeMode = ImeMode.NoControl;
         ToolStripMain.Items.AddRange(new ToolStripItem[] {
@@ -1382,7 +1382,7 @@ partial class FormBrowse
         ToolStripScripts.ClickThrough = true;
         ToolStripScripts.Dock = DockStyle.None;
         ToolStripScripts.DrawBorder = false;
-        ToolStripScripts.GripEnabled = false;
+        ToolStripScripts.GripStyle = ToolStripGripStyle.Visible;
         ToolStripScripts.GripMargin = new Padding(0);
         ToolStripScripts.ImeMode = ImeMode.NoControl;
         ToolStripScripts.LayoutStyle = ToolStripLayoutStyle.HorizontalStackWithOverflow;

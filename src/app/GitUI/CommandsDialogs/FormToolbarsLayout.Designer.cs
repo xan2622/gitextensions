@@ -1,6 +1,6 @@
 namespace GitUI.CommandsDialogs
 {
-    partial class FormToolbarLayout
+    partial class FormToolbarsLayout
     {
         /// <summary>
         /// Required designer variable.
@@ -141,7 +141,7 @@ namespace GitUI.CommandsDialogs
             this.buttonApply.UseVisualStyleBackColor = true;
             this.buttonApply.Click += new System.EventHandler(this.ButtonApply_Click);
             // 
-            // FormToolbarLayout
+            // FormToolbarsLayout
             // 
             this.AcceptButton = this.buttonOK;
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
@@ -158,8 +158,8 @@ namespace GitUI.CommandsDialogs
             this.Controls.Add(this.panelToolbarGrid);
             this.Controls.Add(this.labelInstructions);
             this.MinimizeBox = false;
-            this.MinimumSize = new System.Drawing.Size(500, 350);
-            this.Name = "FormToolbarLayout";
+            this.MinimumSize = new System.Drawing.Size(734, 350);
+            this.Name = "FormToolbarsLayout";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "Toolbars Layout";
             this.ResumeLayout(false);

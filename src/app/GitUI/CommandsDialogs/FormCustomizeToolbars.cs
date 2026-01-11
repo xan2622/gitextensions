@@ -627,7 +627,7 @@ namespace GitUI.CommandsDialogs
             // Save current toolbar layout before opening the layout form
             SaveCurrentToolbarLayout();
 
-            using FormToolbarLayout layoutForm = new(_formBrowse, _dynamicToolbars);
+            using FormToolbarsLayout layoutForm = new(_formBrowse, _dynamicToolbars);
             if (layoutForm.ShowDialog(this) == DialogResult.OK)
             {
                 // Layout was changed, refresh the visibility in case toolbars moved
@@ -1037,6 +1037,12 @@ namespace GitUI.CommandsDialogs
                         {
                             itemName = $"_SPACER_{order}";
                         }
+                        else if (itemToAdd is ToolStripButton button && button.Tag is ToolStripMenuItem originalMenuItem)
+                        {
+                            // For converted buttons, save the ORIGINAL menu item name, not the button name
+                            // This allows the item to be found on next load (before conversion happens)
+                            itemName = originalMenuItem.Name;
+                        }
                         else
                         {
                             itemName = itemToAdd.Name;
@@ -1112,6 +1118,9 @@ namespace GitUI.CommandsDialogs
 
             // Save the configuration
             AppSettings.ToolbarLayout = config;
+
+            // Persist to disk immediately
+            AppSettings.SettingsContainer.Save();
 
             // Refresh the toolbars menu to show dynamically created toolbars
             _formBrowseMenus?.RefreshToolbarsMenu(_dynamicToolbars);
