@@ -30,6 +30,9 @@ namespace GitUI.CommandsDialogs
         private bool _isDragging;
         private Panel? _dropIndicator;
 
+        // Selection state
+        private ToolbarItemPanel? _selectedItem;
+
         public FormToolbarLayout(FormBrowse formBrowse, Dictionary<string, ToolStrip> dynamicToolbars)
         {
             _formBrowse = formBrowse;
@@ -100,6 +103,20 @@ namespace GitUI.CommandsDialogs
             public ToolbarLayoutItem LayoutItem { get; }
             private readonly Label _label;
             private readonly Label _gripLabel;
+            private bool _isSelected;
+
+            // Highlight color used for both drag and selection
+            private static readonly Color HighlightColor = Color.FromArgb(255, 255, 180);
+
+            public bool IsSelected
+            {
+                get => _isSelected;
+                set
+                {
+                    _isSelected = value;
+                    UpdateBackColor();
+                }
+            }
 
             public ToolbarItemPanel(ToolbarLayoutItem item)
             {
@@ -159,18 +176,29 @@ namespace GitUI.CommandsDialogs
             {
                 if (highlight)
                 {
-                    BackColor = Color.FromArgb(255, 255, 180);
+                    BackColor = HighlightColor;
+                }
+                else
+                {
+                    UpdateBackColor();
+                }
+            }
+
+            private void UpdateBackColor()
+            {
+                if (_isSelected)
+                {
+                    BackColor = HighlightColor;
+                }
+                else if (!LayoutItem.IsVisible)
+                {
+                    BackColor = Color.FromArgb(240, 240, 240);
                 }
                 else
                 {
                     BackColor = LayoutItem.IsBuiltIn
                         ? Color.FromArgb(220, 235, 252)
                         : Color.FromArgb(235, 252, 220);
-
-                    if (!LayoutItem.IsVisible)
-                    {
-                        BackColor = Color.FromArgb(240, 240, 240);
-                    }
                 }
             }
         }
@@ -180,6 +208,7 @@ namespace GitUI.CommandsDialogs
             toolTip.SetToolTip(buttonAddRow, "Add a new empty row at the bottom");
             toolTip.SetToolTip(buttonRemoveRow, "Remove the last empty row");
             toolTip.SetToolTip(buttonReset, "Reset layout to default (all toolbars on row 1)");
+            toolTip.SetToolTip(buttonLocate, "Highlight the selected toolbar in the main window (or all toolbars if none selected)");
             toolTip.SetToolTip(buttonOK, "Apply changes and close");
             toolTip.SetToolTip(buttonCancel, "Cancel and close without saving");
             toolTip.SetToolTip(buttonApply, "Apply changes without closing");
@@ -270,6 +299,7 @@ namespace GitUI.CommandsDialogs
         {
             panelToolbarGrid.Controls.Clear();
             _rowPanels.Clear();
+            _selectedItem = null;
 
             // Determine max row
             int maxRow = _layoutItems.Any() ? _layoutItems.Max(i => i.Row) : 0;
@@ -365,10 +395,40 @@ namespace GitUI.CommandsDialogs
         {
             if (_draggedItem != null)
             {
+                // If not dragging, this is a simple click -> select the item
+                if (!_isDragging && sender is ToolbarItemPanel clickedItem)
+                {
+                    SelectToolbarItem(clickedItem);
+                }
+
                 _draggedItem.SetHighlight(false);
                 _draggedItem = null;
                 _isDragging = false;
                 HideDropIndicator();
+            }
+        }
+
+        private void SelectToolbarItem(ToolbarItemPanel itemToSelect)
+        {
+            // Deselect previously selected item
+            if (_selectedItem != null && _selectedItem != itemToSelect)
+            {
+                _selectedItem.IsSelected = false;
+            }
+
+            // Toggle selection if clicking on the same item, otherwise select the new item
+            if (_selectedItem == itemToSelect)
+            {
+                _selectedItem.IsSelected = !_selectedItem.IsSelected;
+                if (!_selectedItem.IsSelected)
+                {
+                    _selectedItem = null;
+                }
+            }
+            else
+            {
+                _selectedItem = itemToSelect;
+                _selectedItem.IsSelected = true;
             }
         }
 
@@ -608,6 +668,153 @@ namespace GitUI.CommandsDialogs
         private void ButtonApply_Click(object? sender, EventArgs e)
         {
             ApplyLayout();
+        }
+
+        private void ButtonLocate_Click(object? sender, EventArgs e)
+        {
+            // Get the ToolStripPanel from FormBrowse
+            Control? toolPanelContainer = _formBrowse.Controls.Cast<Control>()
+                .FirstOrDefault(c => c is ToolStripContainer);
+
+            if (toolPanelContainer is not ToolStripContainer toolPanel)
+            {
+                MessageBox.Show(
+                    "Could not find the toolbar panel.",
+                    "Locate Toolbars",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            // If a toolbar is selected, only locate that one
+            if (_selectedItem != null)
+            {
+                ToolStrip? selectedToolStrip = GetToolStripByName(_selectedItem.LayoutItem.Name);
+                if (selectedToolStrip != null && selectedToolStrip.Visible)
+                {
+                    _ = FlashToolbarsAsync(new List<ToolStrip> { selectedToolStrip });
+                }
+                else
+                {
+                    MessageBox.Show(
+                        $"The selected toolbar '{_selectedItem.LayoutItem.DisplayName}' is not visible in the main window.",
+                        "Locate Toolbar",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                }
+
+                return;
+            }
+
+            // No toolbar selected: locate all visible toolbars
+            List<ToolStrip> allToolStrips = new();
+
+            // Built-in toolbars
+            if (_formBrowse.ToolStripMain.Visible)
+            {
+                allToolStrips.Add(_formBrowse.ToolStripMain);
+            }
+
+            if (_formBrowse.ToolStripFilters.Visible)
+            {
+                allToolStrips.Add(_formBrowse.ToolStripFilters);
+            }
+
+            if (_formBrowse.ToolStripScripts.Visible)
+            {
+                allToolStrips.Add(_formBrowse.ToolStripScripts);
+            }
+
+            // Custom toolbars
+            foreach (var kvp in _dynamicToolbars)
+            {
+                if (kvp.Value.Visible && !allToolStrips.Contains(kvp.Value))
+                {
+                    allToolStrips.Add(kvp.Value);
+                }
+            }
+
+            if (allToolStrips.Count == 0)
+            {
+                MessageBox.Show(
+                    "No visible toolbars found.",
+                    "Locate Toolbars",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
+
+            // Start the flashing animation for all toolbars (fire and forget)
+            _ = FlashToolbarsAsync(allToolStrips);
+        }
+
+        private ToolStrip? GetToolStripByName(string name)
+        {
+            return name switch
+            {
+                "Standard" => _formBrowse.ToolStripMain,
+                "Filters" => _formBrowse.ToolStripFilters,
+                "Scripts" => _formBrowse.ToolStripScripts,
+                _ => _dynamicToolbars.Values.FirstOrDefault(ts => ts.Text == name)
+            };
+        }
+
+        private async Task FlashToolbarsAsync(List<ToolStrip> toolbars)
+        {
+            // Save original background colors
+            Dictionary<ToolStrip, Color> originalColors = new();
+            foreach (ToolStrip toolbar in toolbars)
+            {
+                originalColors[toolbar] = toolbar.BackColor;
+            }
+
+            // Flash parameters
+            const int flashDurationMs = 3000; // 3 seconds total
+            const int stepDurationMs = 100;    // Update every 100ms
+            int steps = flashDurationMs / stepDurationMs;
+
+            try
+            {
+                // Animate from transparent to red and back
+                for (int i = 0; i < steps; i++)
+                {
+                    // Calculate alpha value using a sine wave for smooth fade in/out
+                    double progress = (double)i / steps;
+                    double sineWave = Math.Sin(progress * Math.PI * 4); // 4 complete cycles in 3 seconds
+                    int alpha = (int)(Math.Abs(sineWave) * 180); // Max alpha = 180 (not fully opaque)
+
+                    // Blend red with original background for each toolbar
+                    foreach (ToolStrip toolbar in toolbars)
+                    {
+                        Color flashColor = Color.FromArgb(alpha, Color.Red);
+                        toolbar.BackColor = BlendColors(originalColors[toolbar], flashColor);
+                    }
+
+                    // Wait before next frame
+                    await Task.Delay(stepDurationMs);
+                }
+            }
+            finally
+            {
+                // Restore original colors
+                foreach (ToolStrip toolbar in toolbars)
+                {
+                    toolbar.BackColor = originalColors[toolbar];
+                }
+            }
+        }
+
+        private Color BlendColors(Color background, Color overlay)
+        {
+            // Alpha blending formula
+            int alpha = overlay.A;
+            int invAlpha = 255 - alpha;
+
+            int r = ((overlay.R * alpha) + (background.R * invAlpha)) / 255;
+            int g = ((overlay.G * alpha) + (background.G * invAlpha)) / 255;
+            int b = ((overlay.B * alpha) + (background.B * invAlpha)) / 255;
+
+            return Color.FromArgb(r, g, b);
         }
 
         #endregion

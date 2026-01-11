@@ -38,6 +38,7 @@ namespace GitUI.CommandsDialogs
             this.buttonCancel = new System.Windows.Forms.Button();
             this.buttonApply = new System.Windows.Forms.Button();
             this.buttonReset = new System.Windows.Forms.Button();
+            this.buttonLocate = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // labelInstructions
@@ -59,7 +60,7 @@ namespace GitUI.CommandsDialogs
             this.panelToolbarGrid.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.panelToolbarGrid.Location = new System.Drawing.Point(12, 35);
             this.panelToolbarGrid.Name = "panelToolbarGrid";
-            this.panelToolbarGrid.Size = new System.Drawing.Size(660, 350);
+            this.panelToolbarGrid.Size = new System.Drawing.Size(710, 350);
             this.panelToolbarGrid.TabIndex = 1;
             // 
             // buttonAddRow
@@ -96,10 +97,21 @@ namespace GitUI.CommandsDialogs
             this.buttonReset.UseVisualStyleBackColor = true;
             this.buttonReset.Click += new System.EventHandler(this.ButtonReset_Click);
             // 
+            // buttonLocate
+            // 
+            this.buttonLocate.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.buttonLocate.Location = new System.Drawing.Point(366, 395);
+            this.buttonLocate.Name = "buttonLocate";
+            this.buttonLocate.Size = new System.Drawing.Size(100, 28);
+            this.buttonLocate.TabIndex = 8;
+            this.buttonLocate.Text = "Locate";
+            this.buttonLocate.UseVisualStyleBackColor = true;
+            this.buttonLocate.Click += new System.EventHandler(this.ButtonLocate_Click);
+            // 
             // buttonOK
             // 
             this.buttonOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.buttonOK.Location = new System.Drawing.Point(426, 395);
+            this.buttonOK.Location = new System.Drawing.Point(476, 395);
             this.buttonOK.Name = "buttonOK";
             this.buttonOK.Size = new System.Drawing.Size(75, 28);
             this.buttonOK.TabIndex = 4;
@@ -111,7 +123,7 @@ namespace GitUI.CommandsDialogs
             // 
             this.buttonCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.buttonCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.buttonCancel.Location = new System.Drawing.Point(507, 395);
+            this.buttonCancel.Location = new System.Drawing.Point(557, 395);
             this.buttonCancel.Name = "buttonCancel";
             this.buttonCancel.Size = new System.Drawing.Size(75, 28);
             this.buttonCancel.TabIndex = 5;
@@ -121,7 +133,7 @@ namespace GitUI.CommandsDialogs
             // buttonApply
             // 
             this.buttonApply.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.buttonApply.Location = new System.Drawing.Point(588, 395);
+            this.buttonApply.Location = new System.Drawing.Point(638, 395);
             this.buttonApply.Name = "buttonApply";
             this.buttonApply.Size = new System.Drawing.Size(75, 28);
             this.buttonApply.TabIndex = 6;
@@ -135,7 +147,8 @@ namespace GitUI.CommandsDialogs
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.CancelButton = this.buttonCancel;
-            this.ClientSize = new System.Drawing.Size(684, 435);
+            this.ClientSize = new System.Drawing.Size(734, 435);
+            this.Controls.Add(this.buttonLocate);
             this.Controls.Add(this.buttonReset);
             this.Controls.Add(this.buttonApply);
             this.Controls.Add(this.buttonCancel);
@@ -148,7 +161,7 @@ namespace GitUI.CommandsDialogs
             this.MinimumSize = new System.Drawing.Size(500, 350);
             this.Name = "FormToolbarLayout";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
-            this.Text = "Toolbar Layout";
+            this.Text = "Toolbars Layout";
             this.ResumeLayout(false);
             this.PerformLayout();
         }
@@ -164,5 +177,6 @@ namespace GitUI.CommandsDialogs
         private System.Windows.Forms.Button buttonCancel;
         private System.Windows.Forms.Button buttonApply;
         private System.Windows.Forms.Button buttonReset;
+        private System.Windows.Forms.Button buttonLocate;
     }
 }

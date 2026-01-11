@@ -318,7 +318,7 @@ namespace GitUI.CommandsDialogs
             this.buttonToolbarLayout.Name = "buttonToolbarLayout";
             this.buttonToolbarLayout.Size = new System.Drawing.Size(120, 25);
             this.buttonToolbarLayout.TabIndex = 20;
-            this.buttonToolbarLayout.Text = "Toolbars layout";
+            this.buttonToolbarLayout.Text = "Toolbars Layout";
             this.buttonToolbarLayout.UseVisualStyleBackColor = true;
             this.buttonToolbarLayout.Click += new System.EventHandler(this.ButtonToolbarLayout_Click);
             //
