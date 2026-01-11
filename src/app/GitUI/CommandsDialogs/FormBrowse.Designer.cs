@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using GitExtensions.Extensibility.Git;
 using GitExtUtils.GitUI.Theming;
 using GitUI.CommandsDialogs.Menus;
@@ -1383,7 +1383,6 @@ partial class FormBrowse
         ToolStripScripts.Dock = DockStyle.None;
         ToolStripScripts.DrawBorder = false;
         ToolStripScripts.GripStyle = ToolStripGripStyle.Visible;
-        ToolStripScripts.GripMargin = new Padding(0);
         ToolStripScripts.ImeMode = ImeMode.NoControl;
         ToolStripScripts.LayoutStyle = ToolStripLayoutStyle.HorizontalStackWithOverflow;
         ToolStripScripts.Location = new Point(890, 0);

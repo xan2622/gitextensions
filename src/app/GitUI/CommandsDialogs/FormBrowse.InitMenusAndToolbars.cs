@@ -469,11 +469,12 @@ partial class FormBrowse
 
                     if (item != null)
                     {
-                        // Convert ToolStripMenuItem to ToolStripButton if needed for custom toolbar
+                        // Convert ToolStripMenuItem to ToolStripButton or ToolStripSplitButton if needed for custom toolbar
                         if (item is ToolStripMenuItem menuItem)
                         {
                             item = ConvertMenuItemToButton(menuItem);
-                            LogToolbar($"[ApplyLayoutToToolStrip] Converted {menuItem.Name} from MenuItem to Button");
+                            string itemType = item is ToolStripSplitButton ? "SplitButton" : (item is ToolStripDropDownButton ? "DropDownButton" : "Button");
+                            LogToolbar($"[ApplyLayoutToToolStrip] Converted {menuItem.Name} from MenuItem to {itemType}");
                         }
 
                         // Remove from current owner if different
@@ -531,38 +532,212 @@ partial class FormBrowse
             LogToolbar($"[ApplyLayoutToToolStrip] Final item count in {toolStrip.Name}: {toolStrip.Items.Count}");
         }
 
-        ToolStripButton ConvertMenuItemToButton(ToolStripMenuItem menuItem)
+        ToolStripItem ConvertMenuItemToButton(ToolStripMenuItem menuItem)
         {
-            // Create a new ToolStripButton that mimics the menu item
-            ToolStripButton button = new()
+            // Check if the menu item has dropdown items (sub-menu)
+            if (menuItem.DropDownItems.Count > 0 && menuItem.HasDropDownItems)
             {
-                Name = $"btn_{menuItem.Name}",
-                Text = menuItem.Text,
-                Image = menuItem.Image,
-                ToolTipText = string.IsNullOrEmpty(menuItem.ToolTipText) ? menuItem.Text.Replace("&", "") : menuItem.ToolTipText,
-                DisplayStyle = ToolStripItemDisplayStyle.Image,
-                ImageTransparentColor = menuItem.ImageTransparentColor,
-                Tag = menuItem, // Store reference to original menu item
-                Enabled = menuItem.Enabled,
-                Visible = menuItem.Visible
-            };
+                // Convert to ToolStripSplitButton to preserve dropdown functionality with visual split
+                ToolStripSplitButton splitButton = new()
+                {
+                    Name = $"btn_{menuItem.Name}",
+                    Text = menuItem.Text,
+                    Image = menuItem.Image,
+                    ToolTipText = string.IsNullOrEmpty(menuItem.ToolTipText) ? menuItem.Text.Replace("&", "") : menuItem.ToolTipText,
+                    DisplayStyle = ToolStripItemDisplayStyle.Image,
+                    ImageTransparentColor = menuItem.ImageTransparentColor,
+                    Tag = menuItem, // Store reference to original menu item
+                    Enabled = menuItem.Enabled,
+                    Visible = menuItem.Visible
+                };
 
-            // When button is clicked, trigger the original menu item's click
-            button.Click += (s, e) =>
-            {
-                // Trigger the original menu item's click event
-                menuItem.PerformClick();
-            };
+                // Copy all dropdown items from the menu item to the button
+                // We need to create references, not move the items (to keep the original menu functional)
+                foreach (ToolStripItem dropDownItem in menuItem.DropDownItems)
+                {
+                    // Clone the dropdown item or create a reference
+                    if (dropDownItem is ToolStripMenuItem subMenuItem)
+                    {
+                        ToolStripMenuItem clonedItem = new()
+                        {
+                            Name = subMenuItem.Name,
+                            Text = subMenuItem.Text,
+                            Image = subMenuItem.Image,
+                            Tag = subMenuItem,
+                            Enabled = subMenuItem.Enabled,
+                            Visible = subMenuItem.Visible
+                        };
 
-            // Store the converted button in the original items dictionary
-            // This allows it to be found on subsequent loads
-            if (!string.IsNullOrWhiteSpace(button.Name) && !_originalToolbarItems.ContainsKey(button.Name))
-            {
-                _originalToolbarItems[button.Name] = button;
-                LogToolbar($"[ConvertMenuItemToButton] Stored converted button: {button.Name}");
+                        clonedItem.Click += (s, e) =>
+                        {
+                            LogToolbar($"[ConvertMenuItemToButton] Dropdown item {clonedItem.Name} clicked, triggering original {subMenuItem.Name}");
+                            try
+                            {
+                                // Trigger the original menu item's click event
+                                subMenuItem.PerformClick();
+                                LogToolbar($"[ConvertMenuItemToButton] Successfully triggered dropdown item {subMenuItem.Name}");
+                            }
+                            catch (Exception ex)
+                            {
+                                LogToolbar($"[ConvertMenuItemToButton] ERROR triggering dropdown item {subMenuItem.Name}: {ex.Message}");
+                            }
+                        };
+
+                        splitButton.DropDownItems.Add(clonedItem);
+                    }
+                    else if (dropDownItem is ToolStripSeparator)
+                    {
+                        splitButton.DropDownItems.Add(new ToolStripSeparator());
+                    }
+                }
+
+                // Handle DropDownOpening event to populate dynamic items
+                splitButton.DropDownOpening += (s, e) =>
+                {
+                    LogToolbar($"[ConvertMenuItemToButton] DropDownOpening triggered for {splitButton.Name}");
+
+                    // Trigger the original menu item's DropDownOpening event to populate dynamic items
+                    if (menuItem.HasDropDown)
+                    {
+                        LogToolbar($"[ConvertMenuItemToButton] Original menu item {menuItem.Name} has dropdown");
+
+                        // Get the DropDownOpening event
+                        System.Reflection.FieldInfo? eventField = typeof(ToolStripDropDownItem)
+                            .GetField("EventDropDownOpening", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+
+                        if (eventField != null)
+                        {
+                            object? eventKey = eventField.GetValue(null);
+                            if (eventKey != null)
+                            {
+                                System.Reflection.PropertyInfo? eventsProperty = typeof(System.ComponentModel.Component)
+                                    .GetProperty("Events", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+                                if (eventsProperty != null)
+                                {
+                                    System.ComponentModel.EventHandlerList? events = eventsProperty.GetValue(menuItem) as System.ComponentModel.EventHandlerList;
+                                    Delegate? dropDownOpeningDelegate = events?[eventKey];
+
+                                    if (dropDownOpeningDelegate != null)
+                                    {
+                                        LogToolbar($"[ConvertMenuItemToButton] Invoking DropDownOpening handler for {menuItem.Name}");
+                                        dropDownOpeningDelegate.DynamicInvoke(menuItem, EventArgs.Empty);
+
+                                        LogToolbar($"[ConvertMenuItemToButton] After invoke, menuItem has {menuItem.DropDownItems.Count} items");
+
+                                        // Sync the dropdown items from the menu to the button
+                                        splitButton.DropDownItems.Clear();
+                                        foreach (ToolStripItem item in menuItem.DropDownItems)
+                                        {
+                                            if (item is ToolStripMenuItem subItem)
+                                            {
+                                                ToolStripMenuItem clonedItem = new()
+                                                {
+                                                    Name = subItem.Name,
+                                                    Text = subItem.Text,
+                                                    Image = subItem.Image,
+                                                    Tag = subItem,
+                                                    Enabled = subItem.Enabled,
+                                                    Visible = subItem.Visible
+                                                };
+
+                                                clonedItem.Click += (sender, args) =>
+                                                {
+                                                    LogToolbar($"[ConvertMenuItemToButton] Dynamic dropdown item {clonedItem.Name} clicked, triggering original {subItem.Name}");
+                                                    try
+                                                    {
+                                                        subItem.PerformClick();
+                                                        LogToolbar($"[ConvertMenuItemToButton] Successfully triggered dynamic dropdown item {subItem.Name}");
+                                                    }
+                                                    catch (Exception ex)
+                                                    {
+                                                        LogToolbar($"[ConvertMenuItemToButton] ERROR triggering dynamic dropdown item {subItem.Name}: {ex.Message}");
+                                                    }
+                                                };
+                                                splitButton.DropDownItems.Add(clonedItem);
+                                            }
+                                            else if (item is ToolStripSeparator)
+                                            {
+                                                splitButton.DropDownItems.Add(new ToolStripSeparator());
+                                            }
+                                        }
+
+                                        LogToolbar($"[ConvertMenuItemToButton] SplitButton now has {splitButton.DropDownItems.Count} items");
+                                    }
+                                    else
+                                    {
+                                        LogToolbar($"[ConvertMenuItemToButton] No DropDownOpening delegate found for {menuItem.Name}");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        LogToolbar($"[ConvertMenuItemToButton] Original menu item {menuItem.Name} does NOT have dropdown");
+                    }
+                };
+
+                // Handle ButtonClick event (when clicking the main button part, not the arrow)
+                // By default, clicking the button part opens the dropdown
+                // If you want a different behavior, you can handle it here
+                splitButton.ButtonClick += (s, e) =>
+                {
+                    // For now, clicking the button opens the dropdown (default behavior)
+                    // If a specific action is needed, implement it here
+                };
+
+                // Store the converted split button in the original items dictionary
+                if (!string.IsNullOrWhiteSpace(splitButton.Name) && !_originalToolbarItems.ContainsKey(splitButton.Name))
+                {
+                    _originalToolbarItems[splitButton.Name] = splitButton;
+                    LogToolbar($"[ConvertMenuItemToButton] Stored converted split button: {splitButton.Name}");
+                }
+
+                return splitButton;
             }
+            else
+            {
+                // Create a simple ToolStripButton for menu items without dropdowns
+                ToolStripButton button = new()
+                {
+                    Name = $"btn_{menuItem.Name}",
+                    Text = menuItem.Text,
+                    Image = menuItem.Image,
+                    ToolTipText = string.IsNullOrEmpty(menuItem.ToolTipText) ? menuItem.Text.Replace("&", "") : menuItem.ToolTipText,
+                    DisplayStyle = ToolStripItemDisplayStyle.Image,
+                    ImageTransparentColor = menuItem.ImageTransparentColor,
+                    Tag = menuItem, // Store reference to original menu item
+                    Enabled = menuItem.Enabled,
+                    Visible = menuItem.Visible
+                };
 
-            return button;
+                // When button is clicked, trigger the original menu item's click
+                button.Click += (s, e) =>
+                {
+                    LogToolbar($"[ConvertMenuItemToButton] Button {button.Name} clicked, triggering original menu item {menuItem.Name}");
+                    try
+                    {
+                        // Trigger the original menu item's click event
+                        menuItem.PerformClick();
+                        LogToolbar($"[ConvertMenuItemToButton] Successfully triggered {menuItem.Name}");
+                    }
+                    catch (Exception ex)
+                    {
+                        LogToolbar($"[ConvertMenuItemToButton] ERROR triggering {menuItem.Name}: {ex.Message}");
+                    }
+                };
+
+                // Store the converted button in the original items dictionary
+                // This allows it to be found on subsequent loads
+                if (!string.IsNullOrWhiteSpace(button.Name) && !_originalToolbarItems.ContainsKey(button.Name))
+                {
+                    _originalToolbarItems[button.Name] = button;
+                    LogToolbar($"[ConvertMenuItemToButton] Stored converted button: {button.Name}");
+                }
+
+                return button;
+            }
         }
 
         ToolStripItem? FindItemInAllToolbars(string itemName)

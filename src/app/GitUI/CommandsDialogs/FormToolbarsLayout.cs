@@ -196,9 +196,8 @@ namespace GitUI.CommandsDialogs
                 }
                 else
                 {
-                    BackColor = LayoutItem.IsBuiltIn
-                        ? Color.FromArgb(220, 235, 252)
-                        : Color.FromArgb(235, 252, 220);
+                    // Same color for all toolbars (built-in and custom)
+                    BackColor = Color.FromArgb(220, 235, 252);
                 }
             }
         }
