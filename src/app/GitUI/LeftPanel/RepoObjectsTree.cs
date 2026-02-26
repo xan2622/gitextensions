@@ -259,6 +259,16 @@ public sealed partial class RepoObjectsTree : GitModuleControl
     }
 
     /// <summary>
+    /// Applies a protection filter to the branches tree and refreshes the display.
+    /// </summary>
+    internal void ApplyBranchProtectionFilter(BranchProtectionFilter filter)
+    {
+        _branchesTree.ProtectionFilter = filter;
+        _branchesTree.RefreshInternal(new FilteredGitRefsProvider(UICommands.Module).GetRefs);
+        _branchesTree.UpdateVisibility();
+    }
+
+    /// <summary>
     /// Refresh after resorting.
     /// </summary>
     /// <param name="getRefs">Git references</param>

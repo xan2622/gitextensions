@@ -65,6 +65,28 @@ partial class RepoObjectsTree : IMenuItemFactory
         mnubtnMoveDown.Enabled = isSingleTreeSelected && treeNode?.NextNode is not null;
     }
 
+    private void EnableBranchProtectionFilterContextMenu(bool hasSingleSelection, NodeBase? selectedNode)
+    {
+        // Show filter items only when the Branches tree root node is selected
+        bool isBranchesTreeSelected = hasSingleSelection && selectedNode is LocalBranchTree;
+        toolStripSeparatorBranchFilter.Visible = isBranchesTreeSelected;
+        mnubtnShowAllBranches.Visible = isBranchesTreeSelected;
+        mnubtnShowOnlyProtectedBranches.Visible = isBranchesTreeSelected;
+        mnubtnShowUnprotectedBranches.Visible = isBranchesTreeSelected;
+
+        if (!isBranchesTreeSelected)
+        {
+            return;
+        }
+
+        BranchProtectionFilter currentFilter = _branchesTree.ProtectionFilter;
+
+        // Grey out the item that matches the current active filter
+        mnubtnShowAllBranches.Enabled = currentFilter != BranchProtectionFilter.All;
+        mnubtnShowOnlyProtectedBranches.Enabled = currentFilter != BranchProtectionFilter.OnlyProtected;
+        mnubtnShowUnprotectedBranches.Enabled = currentFilter != BranchProtectionFilter.OnlyUnprotected;
+    }
+
     private void EnableRemoteBranchContextMenu(bool hasSingleSelection, NodeBase? selectedNode)
     {
         bool isSingleRemoteBranchSelected = hasSingleSelection && selectedNode is RemoteBranchNode;
@@ -200,6 +222,11 @@ partial class RepoObjectsTree : IMenuItemFactory
         RegisterClick(mnubtnMoveUp, () => ReorderTreeNode(treeMain.SelectedNode, up: true));
         RegisterClick(mnubtnMoveDown, () => ReorderTreeNode(treeMain.SelectedNode, up: false));
 
+        // Branch protection filter
+        RegisterClick(mnubtnShowAllBranches, () => ApplyBranchProtectionFilter(BranchProtectionFilter.All));
+        RegisterClick(mnubtnShowOnlyProtectedBranches, () => ApplyBranchProtectionFilter(BranchProtectionFilter.OnlyProtected));
+        RegisterClick(mnubtnShowUnprotectedBranches, () => ApplyBranchProtectionFilter(BranchProtectionFilter.OnlyUnprotected));
+
         // Sort by / order
         _sortByContextMenuItem = new GitRefsSortByContextMenuItem(() => ResortRefs(new FilteredGitRefsProvider(UICommands.Module).GetRefs));
         _sortOrderContextMenuItem = new GitRefsSortOrderContextMenuItem(() => ResortRefs(new FilteredGitRefsProvider(UICommands.Module).GetRefs));
@@ -222,6 +249,8 @@ partial class RepoObjectsTree : IMenuItemFactory
 
         LocalBranchNode selectedLocalBranch = selectedNode as LocalBranchNode;
 
+        bool isProtected = selectedLocalBranch?.IsDeleteProtected == true;
+
         foreach (ToolStripItemWithKey item in _localBranchMenuItems)
         {
             bool visible = hasSingleSelection && selectedLocalBranch != null;
@@ -236,6 +265,29 @@ partial class RepoObjectsTree : IMenuItemFactory
                 && (selectedLocalBranch?.IsCurrent == false || LocalBranchMenuItems<LocalBranchNode>.CurrentBranchItemKeys.Contains(item.Key));
         }
 
+        // Show only the relevant protection toggle item: hide "Prevent" when already protected, hide "Remove" when not protected.
+        // NOTE: Do not read ToolStripItem.Visible here — it always returns false while the ContextMenuStrip parent is not yet visible.
+        // Use local variables instead, same pattern as the foreach loop above.
+        bool localBranchVisible = hasSingleSelection && selectedLocalBranch != null;
+
+        if (_localBranchMenuItems.TryGetMenuItem(MenuItemKey.PreventDeletion, out ToolStripItem? preventItem))
+        {
+            preventItem.Visible = localBranchVisible && !isProtected;
+            preventItem.Enabled = localBranchVisible && !isProtected;
+        }
+
+        if (_localBranchMenuItems.TryGetMenuItem(MenuItemKey.RemoveDeletionPrevention, out ToolStripItem? removePreventItem))
+        {
+            removePreventItem.Visible = localBranchVisible && isProtected;
+            removePreventItem.Enabled = localBranchVisible && isProtected;
+        }
+
+        // Grey out "Delete branch..." for protected branches: user must unprotect first.
+        if (_localBranchMenuItems.TryGetMenuItem(MenuItemKey.Delete, out ToolStripItem? deleteItem))
+        {
+            deleteItem.Enabled = deleteItem.Enabled && !isProtected;
+        }
+
         EnableRemoteBranchContextMenu(hasSingleSelection, selectedNode);
         EnableMenuItems(_tagNodeMenuItems, _ => hasSingleSelection && selectedNode is TagNode);
         EnableMenuItems(hasSingleSelection && selectedNode is RemoteBranchTree, mnuBtnManageRemotesFromRootNode, mnuBtnFetchAllRemotes, mnuBtnPruneAllRemotes);
@@ -246,6 +298,7 @@ partial class RepoObjectsTree : IMenuItemFactory
         EnableMenuItems(hasSingleSelection && selectedNode is BranchPathNode, mnubtnCreateBranch, mnubtnDeleteAllBranches);
         EnableExpandCollapseContextMenu(selectedNodes);
         EnableMoveTreeUpDownContexMenu(hasSingleSelection, selectedNode);
+        EnableBranchProtectionFilterContextMenu(hasSingleSelection, selectedNode);
         EnableSortContextMenu(hasSingleSelection, selectedNode);
 
         if (hasSingleSelection && selectedLocalBranch?.Visible == true)

@@ -104,6 +104,10 @@ partial class RepoObjectsTree
         toolStripSeparator4 = new ToolStripSeparator();
         mnubtnMoveUp = new ToolStripMenuItem();
         mnubtnMoveDown = new ToolStripMenuItem();
+        toolStripSeparatorBranchFilter = new ToolStripSeparator();
+        mnubtnShowAllBranches = new ToolStripMenuItem();
+        mnubtnShowOnlyProtectedBranches = new ToolStripMenuItem();
+        mnubtnShowUnprotectedBranches = new ToolStripMenuItem();
         toolStripSeparator1 = new ToolStripSeparator();
         runScriptToolStripMenuItem = new ToolStripMenuItem();
         tsmiMainMenuSpacer1 = new ToolStripSeparator();
@@ -189,6 +193,10 @@ partial class RepoObjectsTree
         toolStripSeparator4,
         mnubtnMoveUp,
         mnubtnMoveDown,
+        toolStripSeparatorBranchFilter,
+        mnubtnShowAllBranches,
+        mnubtnShowOnlyProtectedBranches,
+        mnubtnShowUnprotectedBranches,
         toolStripSeparator1,
         runScriptToolStripMenuItem});
         menuMain.Name = "menuMain";
@@ -526,9 +534,35 @@ partial class RepoObjectsTree
         mnubtnMoveDown.Size = new Size(266, 26);
         mnubtnMoveDown.Text = "Move Down";
         mnubtnMoveDown.ToolTipText = "Move node down";
-        // 
+        //
+        // toolStripSeparatorBranchFilter
+        //
+        toolStripSeparatorBranchFilter.Name = "toolStripSeparatorBranchFilter";
+        toolStripSeparatorBranchFilter.Size = new Size(263, 6);
+        //
+        // mnubtnShowAllBranches
+        //
+        mnubtnShowAllBranches.Image = Properties.Images.BranchLocalRoot;
+        mnubtnShowAllBranches.Name = "mnubtnShowAllBranches";
+        mnubtnShowAllBranches.Size = new Size(266, 26);
+        mnubtnShowAllBranches.Text = "Show all branches (protected or not)";
+        //
+        // mnubtnShowOnlyProtectedBranches
+        //
+        mnubtnShowOnlyProtectedBranches.Image = Properties.Images.Lock;
+        mnubtnShowOnlyProtectedBranches.Name = "mnubtnShowOnlyProtectedBranches";
+        mnubtnShowOnlyProtectedBranches.Size = new Size(266, 26);
+        mnubtnShowOnlyProtectedBranches.Text = "Show protected branches";
+        //
+        // mnubtnShowUnprotectedBranches
+        //
+        mnubtnShowUnprotectedBranches.Image = Properties.Images.Lock;
+        mnubtnShowUnprotectedBranches.Name = "mnubtnShowUnprotectedBranches";
+        mnubtnShowUnprotectedBranches.Size = new Size(266, 26);
+        mnubtnShowUnprotectedBranches.Text = "Show unprotected branches";
+        //
         // toolStripSeparator1
-        // 
+        //
         toolStripSeparator1.Name = "toolStripSeparator1";
         toolStripSeparator1.Size = new Size(263, 6);
         // 
@@ -714,6 +748,10 @@ partial class RepoObjectsTree
     private ToolTip toolTip;
     private ToolStripMenuItem mnubtnMoveUp;
     private ToolStripMenuItem mnubtnMoveDown;
+    private ToolStripSeparator toolStripSeparatorBranchFilter;
+    private ToolStripMenuItem mnubtnShowAllBranches;
+    private ToolStripMenuItem mnubtnShowOnlyProtectedBranches;
+    private ToolStripMenuItem mnubtnShowUnprotectedBranches;
     private ToolStripEx leftPanelToolStrip;
     private ToolStripButton tsbCollapseAll;
     private ToolStripButton tsbShowBranches;

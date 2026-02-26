@@ -7,10 +7,39 @@ using Microsoft;
 
 namespace GitUI.LeftPanel;
 
+internal enum BranchProtectionFilter
+{
+    /// <summary>Show all branches regardless of their protection status.</summary>
+    All,
+
+    /// <summary>Show only branches protected from deletion.</summary>
+    OnlyProtected,
+
+    /// <summary>Show only branches that are not protected from deletion.</summary>
+    OnlyUnprotected,
+}
+
 internal sealed class LocalBranchTree : BaseRefTree
 {
     private readonly IAheadBehindDataProvider? _aheadBehindDataProvider;
     private readonly IRevisionGridInfo _revisionGridInfo;
+
+    public BranchProtectionFilter ProtectionFilter { get; set; } = BranchProtectionFilter.All;
+
+    /// <summary>
+    /// Refreshes the branch list if a protection filter is currently active,
+    /// so that branches whose protection status just changed are shown or hidden accordingly.
+    /// </summary>
+    internal void RefreshIfFilterActive()
+    {
+        if (ProtectionFilter == BranchProtectionFilter.All)
+        {
+            return;
+        }
+
+        RefreshInternal(new FilteredGitRefsProvider(Module).GetRefs);
+        UpdateVisibility();
+    }
 
     public LocalBranchTree(TreeNode treeNode, IGitUICommandsSource uiCommands, IAheadBehindDataProvider? aheadBehindDataProvider, ICheckRefs refsSource, IRevisionGridInfo revisionGridInfo)
         : base(treeNode, uiCommands, refsSource, RefsFilter.Heads)
@@ -54,12 +83,28 @@ internal sealed class LocalBranchTree : BaseRefTree
         Nodes nodes = new(this);
         IDictionary<string, AheadBehindData> aheadBehindData = _aheadBehindDataProvider?.GetData();
         string currentBranch = _revisionGridInfo.GetCurrentBranch();
+        string gitDir = UICommands.Module.WorkingDirGitDir;
         Dictionary<string, BaseRevisionNode> pathToNode = [];
         foreach (IGitRef branch in PrioritizedBranches(branches))
         {
             token.ThrowIfCancellationRequested();
 
             Validates.NotNull(branch.ObjectId);
+
+            // Apply protection filter before building the node
+            if (ProtectionFilter != BranchProtectionFilter.All)
+            {
+                bool isProtected = ProtectedBranchStore.IsProtected(gitDir, branch.Name);
+                if (ProtectionFilter == BranchProtectionFilter.OnlyProtected && !isProtected)
+                {
+                    continue;
+                }
+
+                if (ProtectionFilter == BranchProtectionFilter.OnlyUnprotected && isProtected)
+                {
+                    continue;
+                }
+            }
 
             LocalBranchNode localBranchNode = new(this, branch.ObjectId, branch.Name, branch.Name == currentBranch, visible: true);
 
